@@ -1,6 +1,7 @@
 package com.domus.server.visits.service;
 
 import com.domus.server.common.exception.ResourceNotFoundException;
+import com.domus.server.notifications.service.NotificationService;
 import com.domus.server.user.entity.RoleName;
 import com.domus.server.user.entity.UserEntity;
 import com.domus.server.user.repository.UserRepository;
@@ -29,11 +30,18 @@ public class VisitService {
     private final VisitRepository visitRepository;
     private final UserRepository userRepository;
     private final VisitMapper visitMapper;
+    private final NotificationService notificationService;
 
-    public VisitService(VisitRepository visitRepository, UserRepository userRepository, VisitMapper visitMapper) {
+    public VisitService(
+        VisitRepository visitRepository,
+        UserRepository userRepository,
+        VisitMapper visitMapper,
+        NotificationService notificationService
+    ) {
         this.visitRepository = visitRepository;
         this.userRepository = userRepository;
         this.visitMapper = visitMapper;
+        this.notificationService = notificationService;
     }
 
     public VisitResponse create(CreateVisitRequest request, UUID recordedByUserId) {
@@ -58,7 +66,9 @@ public class VisitService {
         visit.setStatus(VisitStatus.PENDIENTE);
         visit.setRecordedByUser(recordedByUser);
 
-        return visitMapper.toResponse(visitRepository.save(visit));
+        VisitEntity savedVisit = visitRepository.save(visit);
+        notificationService.notifyVisitRegistered(savedVisit);
+        return visitMapper.toResponse(savedVisit);
     }
 
     @Transactional(readOnly = true)

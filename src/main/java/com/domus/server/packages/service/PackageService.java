@@ -12,6 +12,7 @@ import com.domus.server.packages.entity.PackageType;
 import com.domus.server.packages.mapper.PackageMapper;
 import com.domus.server.packages.repository.PackageRepository;
 import com.domus.server.packages.support.PackageSpecifications;
+import com.domus.server.notifications.service.NotificationService;
 import com.domus.server.user.entity.RoleName;
 import com.domus.server.user.entity.UserEntity;
 import com.domus.server.user.repository.UserRepository;
@@ -30,11 +31,18 @@ public class PackageService {
     private final PackageRepository packageRepository;
     private final UserRepository userRepository;
     private final PackageMapper packageMapper;
+    private final NotificationService notificationService;
 
-    public PackageService(PackageRepository packageRepository, UserRepository userRepository, PackageMapper packageMapper) {
+    public PackageService(
+        PackageRepository packageRepository,
+        UserRepository userRepository,
+        PackageMapper packageMapper,
+        NotificationService notificationService
+    ) {
         this.packageRepository = packageRepository;
         this.userRepository = userRepository;
         this.packageMapper = packageMapper;
+        this.notificationService = notificationService;
     }
 
     public PackageResponse create(CreatePackageRequest request, UUID recordedByUserId) {
@@ -59,7 +67,9 @@ public class PackageService {
         packageEntity.setStatus(PackageStatus.RECIBIDA);
         packageEntity.setRecordedByUser(recordedByUser);
 
-        return packageMapper.toResponse(packageRepository.save(packageEntity));
+        PackageEntity savedPackage = packageRepository.save(packageEntity);
+        notificationService.notifyPackageReceived(savedPackage);
+        return packageMapper.toResponse(savedPackage);
     }
 
     @Transactional(readOnly = true)

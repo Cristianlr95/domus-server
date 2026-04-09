@@ -12,6 +12,7 @@ import com.domus.server.messaging.entity.MessageStatus;
 import com.domus.server.messaging.mapper.MessagingMapper;
 import com.domus.server.messaging.repository.ConversationRepository;
 import com.domus.server.messaging.repository.MessageRepository;
+import com.domus.server.notifications.service.NotificationService;
 import com.domus.server.user.entity.UserEntity;
 import com.domus.server.user.repository.UserRepository;
 import java.time.Instant;
@@ -28,17 +29,20 @@ public class MessagingService {
     private final MessageRepository messageRepository;
     private final UserRepository userRepository;
     private final MessagingMapper messagingMapper;
+    private final NotificationService notificationService;
 
     public MessagingService(
         ConversationRepository conversationRepository,
         MessageRepository messageRepository,
         UserRepository userRepository,
-        MessagingMapper messagingMapper
+        MessagingMapper messagingMapper,
+        NotificationService notificationService
     ) {
         this.conversationRepository = conversationRepository;
         this.messageRepository = messageRepository;
         this.userRepository = userRepository;
         this.messagingMapper = messagingMapper;
+        this.notificationService = notificationService;
     }
 
     public MessageResponse sendMessage(UUID senderUserId, SendMessageRequest request) {
@@ -61,6 +65,7 @@ public class MessagingService {
 
         MessageEntity savedMessage = messageRepository.save(message);
         updateConversationMetadata(conversation, sender, savedMessage.getContent(), savedMessage.getCreatedAt());
+        notificationService.notifyMessageReceived(savedMessage);
         return messagingMapper.toMessageResponse(savedMessage);
     }
 

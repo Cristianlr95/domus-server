@@ -739,6 +739,88 @@ class DomusServerApplicationTests {
             .andExpect(jsonPath("$.data[0].id").exists());
     }
 
+    @Test
+    void residentCanListAndReadGeneratedNotifications() throws Exception {
+        String conciergeToken = loginAndExtractToken("conserjeria@domus.cl", "Domus123!");
+        String residentToken = loginAndExtractToken("residente@domus.cl", "Domus123!");
+
+        String packageBody = """
+            {
+              "description": "Caja de documentos",
+              "senderName": "Courier Central",
+              "packageType": "PAQUETE",
+              "residentUserId": "bb4f8752-3baa-46fb-934b-54cc2d9d2003",
+              "residentName": "Rocio Residente",
+              "unitLabel": "Depto 804",
+              "blockLabel": "Torre A",
+              "receivedByName": "Ana Porteria",
+              "observations": "Notificacion por encomienda."
+            }
+            """;
+
+        mockMvc.perform(post("/api/v1/packages")
+                .header("Authorization", "Bearer " + conciergeToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(packageBody))
+            .andExpect(status().isOk());
+
+        String visitBody = """
+            {
+              "visitorName": "Luis Paredes",
+              "visitorDocument": "18.222.333-4",
+              "visitorPhone": "+56911113333",
+              "vehiclePlate": "MNOP45",
+              "residentUserId": "bb4f8752-3baa-46fb-934b-54cc2d9d2003",
+              "residentName": "Rocio Residente",
+              "unitLabel": "Depto 804",
+              "blockLabel": "Torre A",
+              "observations": "Notificacion por visita.",
+              "registrationType": "MANUAL_CONSERJERIA"
+            }
+            """;
+
+        mockMvc.perform(post("/api/v1/visits")
+                .header("Authorization", "Bearer " + conciergeToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(visitBody))
+            .andExpect(status().isOk());
+
+        String messageBody = """
+            {
+              "recipientUserId": "bb4f8752-3baa-46fb-934b-54cc2d9d2003",
+              "content": "Tienes novedades en el edificio."
+            }
+            """;
+
+        mockMvc.perform(post("/api/v1/messages")
+                .header("Authorization", "Bearer " + conciergeToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(messageBody))
+            .andExpect(status().isOk());
+
+        String notificationsResponse = mockMvc.perform(get("/api/v1/notifications")
+                .header("Authorization", "Bearer " + residentToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[0].type").exists())
+            .andExpect(jsonPath("$.data[0].route").exists())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+        String notificationId = objectMapper.readTree(notificationsResponse).path("data").get(0).path("id").asText();
+
+        mockMvc.perform(get("/api/v1/notifications/unread-count")
+                .header("Authorization", "Bearer " + residentToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.unreadCount").value(greaterThanOrEqualTo(3)));
+
+        mockMvc.perform(patch("/api/v1/notifications/" + notificationId + "/read")
+                .header("Authorization", "Bearer " + residentToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.read").value(true))
+            .andExpect(jsonPath("$.data.readAt").isNotEmpty());
+    }
+
     private String loginAndExtractToken(String email, String password) throws Exception {
         String loginBody = """
             {
