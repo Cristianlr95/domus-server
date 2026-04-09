@@ -590,6 +590,99 @@ class DomusServerApplicationTests {
             .andExpect(jsonPath("$.data.occupancyStatus").value("DISPONIBLE"));
     }
 
+    @Test
+    void conciergeCanCreateUpdateAndChangeStorageStatus() throws Exception {
+        String conciergeToken = loginAndExtractToken("conserjeria@domus.cl", "Domus123!");
+
+        String unitBody = """
+            {
+              "unitCode": "310",
+              "blockLabel": "Torre E",
+              "floorNumber": 3,
+              "observations": "Unidad para pruebas de bodega.",
+              "residentIds": []
+            }
+            """;
+
+        String unitResponse = mockMvc.perform(post("/api/v1/units")
+                .header("Authorization", "Bearer " + conciergeToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(unitBody))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+        String unitId = objectMapper.readTree(unitResponse).path("data").path("id").asText();
+
+        String createBody = """
+            {
+              "storageCode": "B-03",
+              "storageType": "MEDIANA",
+              "occupancyStatus": "DISPONIBLE",
+              "unitId": "%s",
+              "observations": "Bodega interior."
+            }
+            """.formatted(unitId);
+
+        String createResponse = mockMvc.perform(post("/api/v1/storages")
+                .header("Authorization", "Bearer " + conciergeToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createBody))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.storageCode").value("B-03"))
+            .andExpect(jsonPath("$.data.storageType").value("MEDIANA"))
+            .andExpect(jsonPath("$.data.occupancyStatus").value("DISPONIBLE"))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+        String storageId = objectMapper.readTree(createResponse).path("data").path("id").asText();
+
+        mockMvc.perform(get("/api/v1/storages")
+                .header("Authorization", "Bearer " + conciergeToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[0].id").exists());
+
+        mockMvc.perform(get("/api/v1/storages/" + storageId)
+                .header("Authorization", "Bearer " + conciergeToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.unit.unitCode").value("310"));
+
+        String updateBody = """
+            {
+              "storageCode": "B-03",
+              "storageType": "GRANDE",
+              "occupancyStatus": "OCUPADA",
+              "unitId": "%s",
+              "observations": "Bodega ampliada."
+            }
+            """.formatted(unitId);
+
+        mockMvc.perform(put("/api/v1/storages/" + storageId)
+                .header("Authorization", "Bearer " + conciergeToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(updateBody))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.storageType").value("GRANDE"))
+            .andExpect(jsonPath("$.data.occupancyStatus").value("OCUPADA"));
+
+        String statusBody = """
+            {
+              "active": false,
+              "occupancyStatus": "DISPONIBLE"
+            }
+            """;
+
+        mockMvc.perform(patch("/api/v1/storages/" + storageId + "/status")
+                .header("Authorization", "Bearer " + conciergeToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(statusBody))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.active").value(false))
+            .andExpect(jsonPath("$.data.occupancyStatus").value("DISPONIBLE"));
+    }
+
     private String loginAndExtractToken(String email, String password) throws Exception {
         String loginBody = """
             {
