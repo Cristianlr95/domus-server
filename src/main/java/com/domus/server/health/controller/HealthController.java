@@ -1,5 +1,6 @@
-package com.domus.demo.controller;
+package com.domus.server.health.controller;
 
+import com.domus.server.common.api.ApiResponse;
 import java.util.Map;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -10,10 +11,10 @@ import org.springframework.web.bind.annotation.RestController;
 public class HealthController {
 
     @GetMapping("/health")
-    public Map<String, String> health() {
-        return Map.of(
+    public ApiResponse<Map<String, String>> health() {
+        return ApiResponse.of(Map.of(
             "application", "domus-server",
             "status", "ok"
-        );
+        ));
     }
 }
