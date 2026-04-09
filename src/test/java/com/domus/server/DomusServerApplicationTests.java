@@ -3,6 +3,7 @@ package com.domus.server;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -198,6 +199,83 @@ class DomusServerApplicationTests {
             .andExpect(jsonPath("$.data.status").value("ENTREGADA"))
             .andExpect(jsonPath("$.data.deliveredToName").value("Rocio Residente"))
             .andExpect(jsonPath("$.data.deliveredAt").isNotEmpty());
+    }
+
+    @Test
+    void conciergeCanCreateUpdateAndDeactivateResident() throws Exception {
+        String conciergeToken = loginAndExtractToken("conserjeria@domus.cl", "Domus123!");
+
+        String createBody = """
+            {
+              "firstName": "Claudia",
+              "lastName": "Mendez",
+              "documentNumber": "22.333.444-5",
+              "email": "claudia.mendez@domus.cl",
+              "phone": "+56999998888",
+              "residentType": "ARRENDATARIO",
+              "unitLabel": "Depto 804",
+              "blockLabel": "Torre A",
+              "linkedUserId": "bb4f8752-3baa-46fb-934b-54cc2d9d2003"
+            }
+            """;
+
+        String createResponse = mockMvc.perform(post("/api/v1/residents")
+                .header("Authorization", "Bearer " + conciergeToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createBody))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.firstName").value("Claudia"))
+            .andExpect(jsonPath("$.data.active").value(true))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+        String residentId = objectMapper.readTree(createResponse).path("data").path("id").asText();
+
+        mockMvc.perform(get("/api/v1/residents")
+                .header("Authorization", "Bearer " + conciergeToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[0].id").exists());
+
+        mockMvc.perform(get("/api/v1/residents/" + residentId)
+                .header("Authorization", "Bearer " + conciergeToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.unitLabel").value("Depto 804"));
+
+        String updateBody = """
+            {
+              "firstName": "Claudia",
+              "lastName": "Mendez Soto",
+              "documentNumber": "22.333.444-5",
+              "email": "claudia.mendez@domus.cl",
+              "phone": "+56999998888",
+              "residentType": "PROPIETARIO",
+              "unitLabel": "Depto 804",
+              "blockLabel": "Torre A",
+              "linkedUserId": "bb4f8752-3baa-46fb-934b-54cc2d9d2003"
+            }
+            """;
+
+        mockMvc.perform(put("/api/v1/residents/" + residentId)
+                .header("Authorization", "Bearer " + conciergeToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(updateBody))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.lastName").value("Mendez Soto"))
+            .andExpect(jsonPath("$.data.residentType").value("PROPIETARIO"));
+
+        String deactivateBody = """
+            {
+              "active": false
+            }
+            """;
+
+        mockMvc.perform(patch("/api/v1/residents/" + residentId + "/status")
+                .header("Authorization", "Bearer " + conciergeToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(deactivateBody))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.active").value(false));
     }
 
     private String loginAndExtractToken(String email, String password) throws Exception {
