@@ -130,6 +130,76 @@ class DomusServerApplicationTests {
             .andExpect(jsonPath("$.data.exitAt").isNotEmpty());
     }
 
+    @Test
+    void conciergeCanRegisterNotifyAndDeliverPackage() throws Exception {
+        String conciergeToken = loginAndExtractToken("conserjeria@domus.cl", "Domus123!");
+
+        String createBody = """
+            {
+              "description": "Paquete de farmacia",
+              "senderName": "Farmacia Central",
+              "packageType": "PAQUETE",
+              "residentUserId": "bb4f8752-3baa-46fb-934b-54cc2d9d2003",
+              "residentName": "Rocio Residente",
+              "unitLabel": "Depto 804",
+              "blockLabel": "Torre A",
+              "receivedByName": "Ana Porteria",
+              "observations": "Entregado por courier externo."
+            }
+            """;
+
+        String createResponse = mockMvc.perform(post("/api/v1/packages")
+                .header("Authorization", "Bearer " + conciergeToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createBody))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.description").value("Paquete de farmacia"))
+            .andExpect(jsonPath("$.data.status").value("RECIBIDA"))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+        String packageId = objectMapper.readTree(createResponse).path("data").path("id").asText();
+
+        mockMvc.perform(get("/api/v1/packages")
+                .header("Authorization", "Bearer " + conciergeToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[0].id").exists());
+
+        mockMvc.perform(get("/api/v1/packages/" + packageId)
+                .header("Authorization", "Bearer " + conciergeToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.unitLabel").value("Depto 804"));
+
+        String notifyBody = """
+            {
+              "status": "NOTIFICADA"
+            }
+            """;
+
+        mockMvc.perform(patch("/api/v1/packages/" + packageId + "/status")
+                .header("Authorization", "Bearer " + conciergeToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(notifyBody))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.status").value("NOTIFICADA"));
+
+        String deliverBody = """
+            {
+              "deliveredToName": "Rocio Residente"
+            }
+            """;
+
+        mockMvc.perform(patch("/api/v1/packages/" + packageId + "/deliver")
+                .header("Authorization", "Bearer " + conciergeToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(deliverBody))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.status").value("ENTREGADA"))
+            .andExpect(jsonPath("$.data.deliveredToName").value("Rocio Residente"))
+            .andExpect(jsonPath("$.data.deliveredAt").isNotEmpty());
+    }
+
     private String loginAndExtractToken(String email, String password) throws Exception {
         String loginBody = """
             {

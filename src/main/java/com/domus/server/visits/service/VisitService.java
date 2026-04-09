@@ -63,8 +63,7 @@ public class VisitService {
 
     @Transactional(readOnly = true)
     public List<VisitResponse> list(VisitStatus status, String search) {
-        Specification<VisitEntity> specification = Specification
-            .where(VisitSpecifications.withStatus(status))
+        Specification<VisitEntity> specification = VisitSpecifications.withStatus(status)
             .and(VisitSpecifications.search(search));
 
         return visitRepository.findAll(specification, Sort.by(Sort.Direction.DESC, "createdAt"))
