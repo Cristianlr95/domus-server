@@ -7,6 +7,8 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 public interface UnitRepository extends JpaRepository<UnitEntity, UUID>, JpaSpecificationExecutor<UnitEntity> {
 
+    long countByActiveTrue();
+
     boolean existsByUnitCodeIgnoreCaseAndBlockLabelIgnoreCase(String unitCode, String blockLabel);
 
     boolean existsByUnitCodeIgnoreCaseAndBlockLabelIgnoreCaseAndIdNot(String unitCode, String blockLabel, UUID id);

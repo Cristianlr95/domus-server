@@ -1,5 +1,6 @@
 package com.domus.server;
 
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -362,6 +363,109 @@ class DomusServerApplicationTests {
                 .content(deactivateBody))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.active").value(false));
+    }
+
+    @Test
+    void conciergeCanViewOperationalDashboard() throws Exception {
+        String conciergeToken = loginAndExtractToken("conserjeria@domus.cl", "Domus123!");
+
+        String unitBody = """
+            {
+              "unitCode": "1501",
+              "blockLabel": "Torre C",
+              "floorNumber": 15,
+              "observations": "Unidad para dashboard.",
+              "residentIds": []
+            }
+            """;
+
+        String unitResponse = mockMvc.perform(post("/api/v1/units")
+                .header("Authorization", "Bearer " + conciergeToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(unitBody))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+        String unitId = objectMapper.readTree(unitResponse).path("data").path("id").asText();
+
+        String residentBody = """
+            {
+              "firstName": "Paula",
+              "lastName": "Rivas",
+              "documentNumber": "33.444.555-6",
+              "email": "paula.rivas@domus.cl",
+              "phone": "+56977776666",
+              "residentType": "OCUPANTE",
+              "linkedUserId": null,
+              "unitId": "%s"
+            }
+            """.formatted(unitId);
+
+        mockMvc.perform(post("/api/v1/residents")
+                .header("Authorization", "Bearer " + conciergeToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(residentBody))
+            .andExpect(status().isOk());
+
+        String visitBody = """
+            {
+              "visitorName": "Luciano Perez",
+              "visitorDocument": "9.876.543-2",
+              "visitorPhone": "+56955554444",
+              "vehiclePlate": "ZXCV98",
+              "residentUserId": null,
+              "residentName": "Paula Rivas",
+              "unitLabel": "1501",
+              "blockLabel": "Torre C",
+              "observations": "Visita para pruebas del panel.",
+              "registrationType": "MANUAL_CONSERJERIA"
+            }
+            """;
+
+        mockMvc.perform(post("/api/v1/visits")
+                .header("Authorization", "Bearer " + conciergeToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(visitBody))
+            .andExpect(status().isOk());
+
+        String packageBody = """
+            {
+              "description": "Caja de supermercado",
+              "senderName": "Despacho Express",
+              "packageType": "DELIVERY",
+              "residentUserId": null,
+              "residentName": "Paula Rivas",
+              "unitLabel": "1501",
+              "blockLabel": "Torre C",
+              "receivedByName": "Mario Porteria",
+              "observations": "Ingreso para dashboard."
+            }
+            """;
+
+        mockMvc.perform(post("/api/v1/packages")
+                .header("Authorization", "Bearer " + conciergeToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(packageBody))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/v1/concierge/dashboard")
+                .header("Authorization", "Bearer " + conciergeToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.metrics.pendingVisits").value(greaterThanOrEqualTo(1)))
+            .andExpect(jsonPath("$.data.metrics.pendingPackages").value(greaterThanOrEqualTo(1)))
+            .andExpect(jsonPath("$.data.metrics.activeResidents").value(greaterThanOrEqualTo(1)))
+            .andExpect(jsonPath("$.data.metrics.activeUnits").value(greaterThanOrEqualTo(1)))
+            .andExpect(jsonPath("$.data.recentActivity[0].type").exists())
+            .andExpect(jsonPath("$.data.generatedAt").isNotEmpty());
+
+        mockMvc.perform(get("/api/v1/concierge/recent-activity")
+                .header("Authorization", "Bearer " + conciergeToken)
+                .param("limit", "5"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[0].type").exists())
+            .andExpect(jsonPath("$.data[0].route").exists());
     }
 
     private String loginAndExtractToken(String email, String password) throws Exception {

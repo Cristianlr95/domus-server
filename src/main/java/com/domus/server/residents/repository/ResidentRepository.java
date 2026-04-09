@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 public interface ResidentRepository extends JpaRepository<ResidentEntity, UUID>, JpaSpecificationExecutor<ResidentEntity> {
 
+    long countByActiveTrue();
+
     boolean existsByDocumentNumberIgnoreCase(String documentNumber);
 
     boolean existsByDocumentNumberIgnoreCaseAndIdNot(String documentNumber, UUID id);
