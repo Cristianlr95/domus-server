@@ -468,6 +468,128 @@ class DomusServerApplicationTests {
             .andExpect(jsonPath("$.data[0].route").exists());
     }
 
+    @Test
+    void conciergeCanCreateUpdateAndChangeParkingStatus() throws Exception {
+        String conciergeToken = loginAndExtractToken("conserjeria@domus.cl", "Domus123!");
+
+        String unitBody = """
+            {
+              "unitCode": "210",
+              "blockLabel": "Torre D",
+              "floorNumber": 2,
+              "observations": "Unidad para pruebas de estacionamiento.",
+              "residentIds": []
+            }
+            """;
+
+        String unitResponse = mockMvc.perform(post("/api/v1/units")
+                .header("Authorization", "Bearer " + conciergeToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(unitBody))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+        String unitId = objectMapper.readTree(unitResponse).path("data").path("id").asText();
+
+        String residentBody = """
+            {
+              "firstName": "Mariela",
+              "lastName": "Saez",
+              "documentNumber": "44.555.666-7",
+              "email": "mariela.saez@domus.cl",
+              "phone": "+56966665555",
+              "residentType": "PROPIETARIO",
+              "linkedUserId": null,
+              "unitId": "%s"
+            }
+            """.formatted(unitId);
+
+        String residentResponse = mockMvc.perform(post("/api/v1/residents")
+                .header("Authorization", "Bearer " + conciergeToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(residentBody))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+        String residentId = objectMapper.readTree(residentResponse).path("data").path("id").asText();
+
+        String createBody = """
+            {
+              "spotCode": "E-12",
+              "parkingType": "RESIDENTE",
+              "occupancyStatus": "DISPONIBLE",
+              "unitId": "%s",
+              "residentId": "%s",
+              "vehiclePlate": null,
+              "observations": "Estacionamiento cubierto."
+            }
+            """.formatted(unitId, residentId);
+
+        String createResponse = mockMvc.perform(post("/api/v1/parking")
+                .header("Authorization", "Bearer " + conciergeToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createBody))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.spotCode").value("E-12"))
+            .andExpect(jsonPath("$.data.parkingType").value("RESIDENTE"))
+            .andExpect(jsonPath("$.data.occupancyStatus").value("DISPONIBLE"))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+        String parkingId = objectMapper.readTree(createResponse).path("data").path("id").asText();
+
+        mockMvc.perform(get("/api/v1/parking")
+                .header("Authorization", "Bearer " + conciergeToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[0].id").exists());
+
+        mockMvc.perform(get("/api/v1/parking/" + parkingId)
+                .header("Authorization", "Bearer " + conciergeToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.unit.unitCode").value("210"))
+            .andExpect(jsonPath("$.data.resident.firstName").value("Mariela"));
+
+        String updateBody = """
+            {
+              "spotCode": "E-12",
+              "parkingType": "RESIDENTE",
+              "occupancyStatus": "OCUPADO",
+              "unitId": "%s",
+              "residentId": "%s",
+              "vehiclePlate": "JKL123",
+              "observations": "Vehiculo asignado al residente."
+            }
+            """.formatted(unitId, residentId);
+
+        mockMvc.perform(put("/api/v1/parking/" + parkingId)
+                .header("Authorization", "Bearer " + conciergeToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(updateBody))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.occupancyStatus").value("OCUPADO"))
+            .andExpect(jsonPath("$.data.vehiclePlate").value("JKL123"));
+
+        String statusBody = """
+            {
+              "active": false,
+              "occupancyStatus": "DISPONIBLE"
+            }
+            """;
+
+        mockMvc.perform(patch("/api/v1/parking/" + parkingId + "/status")
+                .header("Authorization", "Bearer " + conciergeToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(statusBody))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.active").value(false))
+            .andExpect(jsonPath("$.data.occupancyStatus").value("DISPONIBLE"));
+    }
+
     private String loginAndExtractToken(String email, String password) throws Exception {
         String loginBody = """
             {
