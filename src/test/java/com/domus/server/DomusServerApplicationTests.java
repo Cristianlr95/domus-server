@@ -683,6 +683,62 @@ class DomusServerApplicationTests {
             .andExpect(jsonPath("$.data.occupancyStatus").value("DISPONIBLE"));
     }
 
+    @Test
+    void usersCanExchangeMessagesAndMarkThemAsRead() throws Exception {
+        String conciergeToken = loginAndExtractToken("conserjeria@domus.cl", "Domus123!");
+        String residentToken = loginAndExtractToken("residente@domus.cl", "Domus123!");
+
+        String sendBody = """
+            {
+              "recipientUserId": "bb4f8752-3baa-46fb-934b-54cc2d9d2003",
+              "content": "Hola, tienes una encomienda pendiente en conserjeria."
+            }
+            """;
+
+        String sendResponse = mockMvc.perform(post("/api/v1/messages")
+                .header("Authorization", "Bearer " + conciergeToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(sendBody))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.status").value("ENVIADO"))
+            .andExpect(jsonPath("$.data.content").value("Hola, tienes una encomienda pendiente en conserjeria."))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+        String messageId = objectMapper.readTree(sendResponse).path("data").path("id").asText();
+        String conversationId = objectMapper.readTree(sendResponse).path("data").path("conversationId").asText();
+
+        mockMvc.perform(get("/api/v1/conversations")
+                .header("Authorization", "Bearer " + residentToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[0].id").value(conversationId))
+            .andExpect(jsonPath("$.data[0].unreadCount").value(greaterThanOrEqualTo(1)));
+
+        mockMvc.perform(get("/api/v1/conversations/" + conversationId)
+                .header("Authorization", "Bearer " + residentToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.messages[0].id").value(messageId))
+            .andExpect(jsonPath("$.data.otherParticipant.email").value("conserjeria@domus.cl"));
+
+        mockMvc.perform(get("/api/v1/messages")
+                .header("Authorization", "Bearer " + residentToken)
+                .param("conversationId", conversationId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[0].id").value(messageId));
+
+        mockMvc.perform(patch("/api/v1/messages/" + messageId + "/read")
+                .header("Authorization", "Bearer " + residentToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.status").value("LEIDO"))
+            .andExpect(jsonPath("$.data.readAt").isNotEmpty());
+
+        mockMvc.perform(get("/api/v1/messages/contacts")
+                .header("Authorization", "Bearer " + residentToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[0].id").exists());
+    }
+
     private String loginAndExtractToken(String email, String password) throws Exception {
         String loginBody = """
             {
