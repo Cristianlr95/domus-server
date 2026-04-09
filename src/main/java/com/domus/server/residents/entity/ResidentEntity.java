@@ -1,5 +1,6 @@
 package com.domus.server.residents.entity;
 
+import com.domus.server.units.entity.UnitEntity;
 import com.domus.server.user.entity.UserEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -44,11 +45,9 @@ public class ResidentEntity {
     @Column(name = "resident_type", nullable = false, length = 30)
     private ResidentType residentType;
 
-    @Column(name = "unit_label", length = 80)
-    private String unitLabel;
-
-    @Column(name = "block_label", length = 80)
-    private String blockLabel;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "unit_id")
+    private UnitEntity unit;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "linked_user_id", unique = true)
@@ -136,20 +135,12 @@ public class ResidentEntity {
         this.residentType = residentType;
     }
 
-    public String getUnitLabel() {
-        return unitLabel;
+    public UnitEntity getUnit() {
+        return unit;
     }
 
-    public void setUnitLabel(String unitLabel) {
-        this.unitLabel = unitLabel;
-    }
-
-    public String getBlockLabel() {
-        return blockLabel;
-    }
-
-    public void setBlockLabel(String blockLabel) {
-        this.blockLabel = blockLabel;
+    public void setUnit(UnitEntity unit) {
+        this.unit = unit;
     }
 
     public UserEntity getLinkedUser() {

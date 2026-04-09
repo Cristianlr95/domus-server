@@ -1,6 +1,7 @@
 package com.domus.server.residents.repository;
 
 import com.domus.server.residents.entity.ResidentEntity;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -18,4 +19,6 @@ public interface ResidentRepository extends JpaRepository<ResidentEntity, UUID>,
     boolean existsByLinkedUser_Id(UUID linkedUserId);
 
     boolean existsByLinkedUser_IdAndIdNot(UUID linkedUserId, UUID id);
+
+    List<ResidentEntity> findAllByUnit_IdOrderByLastNameAscFirstNameAsc(UUID unitId);
 }

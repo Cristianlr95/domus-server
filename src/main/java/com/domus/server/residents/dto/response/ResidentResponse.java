@@ -13,8 +13,7 @@ public record ResidentResponse(
     String phone,
     boolean active,
     ResidentType residentType,
-    String unitLabel,
-    String blockLabel,
+    ResidentUnitSummaryResponse unit,
     Instant createdAt,
     Instant updatedAt,
     ResidentLinkedUserResponse linkedUser

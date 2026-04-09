@@ -2,7 +2,9 @@ package com.domus.server.residents.mapper;
 
 import com.domus.server.residents.dto.response.ResidentLinkedUserResponse;
 import com.domus.server.residents.dto.response.ResidentResponse;
+import com.domus.server.residents.dto.response.ResidentUnitSummaryResponse;
 import com.domus.server.residents.entity.ResidentEntity;
+import com.domus.server.units.entity.UnitEntity;
 import com.domus.server.user.entity.UserEntity;
 import org.springframework.stereotype.Component;
 
@@ -19,8 +21,7 @@ public class ResidentMapper {
             resident.getPhone(),
             resident.isActive(),
             resident.getResidentType(),
-            resident.getUnitLabel(),
-            resident.getBlockLabel(),
+            toUnitSummary(resident.getUnit()),
             resident.getCreatedAt(),
             resident.getUpdatedAt(),
             toLinkedUser(resident.getLinkedUser())
@@ -37,6 +38,19 @@ public class ResidentMapper {
             user.getFirstName(),
             user.getLastName(),
             user.getEmail()
+        );
+    }
+
+    private ResidentUnitSummaryResponse toUnitSummary(UnitEntity unit) {
+        if (unit == null) {
+            return null;
+        }
+
+        return new ResidentUnitSummaryResponse(
+            unit.getId(),
+            unit.getUnitCode(),
+            unit.getBlockLabel(),
+            unit.getFloorNumber()
         );
     }
 }

@@ -10,6 +10,8 @@ import com.domus.server.residents.entity.ResidentEntity;
 import com.domus.server.residents.mapper.ResidentMapper;
 import com.domus.server.residents.repository.ResidentRepository;
 import com.domus.server.residents.support.ResidentSpecifications;
+import com.domus.server.units.entity.UnitEntity;
+import com.domus.server.units.repository.UnitRepository;
 import com.domus.server.user.entity.RoleName;
 import com.domus.server.user.entity.UserEntity;
 import com.domus.server.user.repository.UserRepository;
@@ -26,11 +28,18 @@ public class ResidentService {
 
     private final ResidentRepository residentRepository;
     private final UserRepository userRepository;
+    private final UnitRepository unitRepository;
     private final ResidentMapper residentMapper;
 
-    public ResidentService(ResidentRepository residentRepository, UserRepository userRepository, ResidentMapper residentMapper) {
+    public ResidentService(
+        ResidentRepository residentRepository,
+        UserRepository userRepository,
+        UnitRepository unitRepository,
+        ResidentMapper residentMapper
+    ) {
         this.residentRepository = residentRepository;
         this.userRepository = userRepository;
+        this.unitRepository = unitRepository;
         this.residentMapper = residentMapper;
     }
 
@@ -48,9 +57,8 @@ public class ResidentService {
             request.email(),
             request.phone(),
             request.residentType(),
-            request.unitLabel(),
-            request.blockLabel(),
-            request.linkedUserId()
+            request.linkedUserId(),
+            request.unitId()
         );
 
         return residentMapper.toResponse(residentRepository.save(resident));
@@ -84,9 +92,8 @@ public class ResidentService {
             request.email(),
             request.phone(),
             request.residentType(),
-            request.unitLabel(),
-            request.blockLabel(),
-            request.linkedUserId()
+            request.linkedUserId(),
+            request.unitId()
         );
 
         return residentMapper.toResponse(residentRepository.save(resident));
@@ -121,9 +128,8 @@ public class ResidentService {
         String email,
         String phone,
         com.domus.server.residents.entity.ResidentType residentType,
-        String unitLabel,
-        String blockLabel,
-        UUID linkedUserId
+        UUID linkedUserId,
+        UUID unitId
     ) {
         resident.setFirstName(firstName.trim());
         resident.setLastName(lastName.trim());
@@ -131,9 +137,8 @@ public class ResidentService {
         resident.setEmail(normalizeEmail(email));
         resident.setPhone(blankToNull(phone));
         resident.setResidentType(residentType);
-        resident.setUnitLabel(blankToNull(unitLabel));
-        resident.setBlockLabel(blankToNull(blockLabel));
         resident.setLinkedUser(resolveLinkedUser(linkedUserId));
+        resident.setUnit(resolveUnit(unitId));
     }
 
     private void validateUniqueFields(String documentNumber, String email, UUID linkedUserId, UUID residentId) {
@@ -181,6 +186,15 @@ public class ResidentService {
         }
 
         return user;
+    }
+
+    private UnitEntity resolveUnit(UUID unitId) {
+        if (unitId == null) {
+            return null;
+        }
+
+        return unitRepository.findById(unitId)
+            .orElseThrow(() -> new ResourceNotFoundException("Unit not found."));
     }
 
     private String normalizeEmail(String email) {

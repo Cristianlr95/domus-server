@@ -205,6 +205,27 @@ class DomusServerApplicationTests {
     void conciergeCanCreateUpdateAndDeactivateResident() throws Exception {
         String conciergeToken = loginAndExtractToken("conserjeria@domus.cl", "Domus123!");
 
+        String unitBody = """
+            {
+              "unitCode": "804",
+              "blockLabel": "Torre A",
+              "floorNumber": 8,
+              "observations": "Unidad para pruebas de residentes.",
+              "residentIds": []
+            }
+            """;
+
+        String unitResponse = mockMvc.perform(post("/api/v1/units")
+                .header("Authorization", "Bearer " + conciergeToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(unitBody))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+        String unitId = objectMapper.readTree(unitResponse).path("data").path("id").asText();
+
         String createBody = """
             {
               "firstName": "Claudia",
@@ -213,11 +234,10 @@ class DomusServerApplicationTests {
               "email": "claudia.mendez@domus.cl",
               "phone": "+56999998888",
               "residentType": "ARRENDATARIO",
-              "unitLabel": "Depto 804",
-              "blockLabel": "Torre A",
-              "linkedUserId": "bb4f8752-3baa-46fb-934b-54cc2d9d2003"
+              "linkedUserId": "bb4f8752-3baa-46fb-934b-54cc2d9d2003",
+              "unitId": "%s"
             }
-            """;
+            """.formatted(unitId);
 
         String createResponse = mockMvc.perform(post("/api/v1/residents")
                 .header("Authorization", "Bearer " + conciergeToken)
@@ -240,7 +260,7 @@ class DomusServerApplicationTests {
         mockMvc.perform(get("/api/v1/residents/" + residentId)
                 .header("Authorization", "Bearer " + conciergeToken))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.unitLabel").value("Depto 804"));
+            .andExpect(jsonPath("$.data.unit.unitCode").value("804"));
 
         String updateBody = """
             {
@@ -250,11 +270,10 @@ class DomusServerApplicationTests {
               "email": "claudia.mendez@domus.cl",
               "phone": "+56999998888",
               "residentType": "PROPIETARIO",
-              "unitLabel": "Depto 804",
-              "blockLabel": "Torre A",
-              "linkedUserId": "bb4f8752-3baa-46fb-934b-54cc2d9d2003"
+              "linkedUserId": "bb4f8752-3baa-46fb-934b-54cc2d9d2003",
+              "unitId": "%s"
             }
-            """;
+            """.formatted(unitId);
 
         mockMvc.perform(put("/api/v1/residents/" + residentId)
                 .header("Authorization", "Bearer " + conciergeToken)
@@ -271,6 +290,73 @@ class DomusServerApplicationTests {
             """;
 
         mockMvc.perform(patch("/api/v1/residents/" + residentId + "/status")
+                .header("Authorization", "Bearer " + conciergeToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(deactivateBody))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.active").value(false));
+    }
+
+    @Test
+    void conciergeCanCreateUpdateAndDeactivateUnit() throws Exception {
+        String conciergeToken = loginAndExtractToken("conserjeria@domus.cl", "Domus123!");
+
+        String createBody = """
+            {
+              "unitCode": "1202",
+              "blockLabel": "Torre B",
+              "floorNumber": 12,
+              "observations": "Unidad orientada al norte.",
+              "residentIds": []
+            }
+            """;
+
+        String createResponse = mockMvc.perform(post("/api/v1/units")
+                .header("Authorization", "Bearer " + conciergeToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createBody))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.unitCode").value("1202"))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+        String unitId = objectMapper.readTree(createResponse).path("data").path("id").asText();
+
+        mockMvc.perform(get("/api/v1/units")
+                .header("Authorization", "Bearer " + conciergeToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[0].id").exists());
+
+        mockMvc.perform(get("/api/v1/units/" + unitId)
+                .header("Authorization", "Bearer " + conciergeToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.blockLabel").value("Torre B"));
+
+        String updateBody = """
+            {
+              "unitCode": "1202",
+              "blockLabel": "Torre B",
+              "floorNumber": 13,
+              "observations": "Unidad actualizada.",
+              "residentIds": []
+            }
+            """;
+
+        mockMvc.perform(put("/api/v1/units/" + unitId)
+                .header("Authorization", "Bearer " + conciergeToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(updateBody))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.floorNumber").value(13));
+
+        String deactivateBody = """
+            {
+              "active": false
+            }
+            """;
+
+        mockMvc.perform(patch("/api/v1/units/" + unitId + "/status")
                 .header("Authorization", "Bearer " + conciergeToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(deactivateBody))

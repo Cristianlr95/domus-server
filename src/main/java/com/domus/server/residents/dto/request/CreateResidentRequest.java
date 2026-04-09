@@ -30,12 +30,8 @@ public record CreateResidentRequest(
     @NotNull
     ResidentType residentType,
 
-    @Size(max = 80)
-    String unitLabel,
+    UUID linkedUserId,
 
-    @Size(max = 80)
-    String blockLabel,
-
-    UUID linkedUserId
+    UUID unitId
 ) {
 }

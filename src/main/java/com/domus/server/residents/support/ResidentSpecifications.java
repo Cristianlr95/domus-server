@@ -25,8 +25,8 @@ public final class ResidentSpecifications {
                 builder.like(builder.lower(root.get("lastName")), pattern),
                 builder.like(builder.lower(root.get("documentNumber")), pattern),
                 builder.like(builder.lower(root.get("email")), pattern),
-                builder.like(builder.lower(root.get("unitLabel")), pattern),
-                builder.like(builder.lower(root.get("blockLabel")), pattern)
+                builder.like(builder.lower(root.get("unit").get("unitCode")), pattern),
+                builder.like(builder.lower(root.get("unit").get("blockLabel")), pattern)
             );
         };
     }
