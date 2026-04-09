@@ -1,10 +1,13 @@
 package com.domus.server;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -18,6 +21,9 @@ class DomusServerApplicationTests {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Test
     void loginReturnsJwtAndCurrentUser() throws Exception {
@@ -51,5 +57,97 @@ class DomusServerApplicationTests {
     void unauthenticatedUserCannotAccessProtectedEndpoint() throws Exception {
         mockMvc.perform(get("/api/v1/users/me"))
             .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void conciergeCanCreateListAndUpdateVisitStatus() throws Exception {
+        String conciergeToken = loginAndExtractToken("conserjeria@domus.cl", "Domus123!");
+
+        String createBody = """
+            {
+              "visitorName": "Mario Soto",
+              "visitorDocument": "12.345.678-9",
+              "visitorPhone": "+56911112222",
+              "vehiclePlate": "ABCD11",
+              "residentUserId": "bb4f8752-3baa-46fb-934b-54cc2d9d2003",
+              "residentName": "Rocio Residente",
+              "unitLabel": "Depto 804",
+              "blockLabel": "Torre A",
+              "observations": "Entrega de llaves y visita breve.",
+              "registrationType": "MANUAL_CONSERJERIA"
+            }
+            """;
+
+        String createResponse = mockMvc.perform(post("/api/v1/visits")
+                .header("Authorization", "Bearer " + conciergeToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createBody))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.visitorName").value("Mario Soto"))
+            .andExpect(jsonPath("$.data.status").value("PENDIENTE"))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+        String visitId = objectMapper.readTree(createResponse).path("data").path("id").asText();
+
+        mockMvc.perform(get("/api/v1/visits")
+                .header("Authorization", "Bearer " + conciergeToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[0].id").exists());
+
+        mockMvc.perform(get("/api/v1/visits/" + visitId)
+                .header("Authorization", "Bearer " + conciergeToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.unitLabel").value("Depto 804"));
+
+        String checkInBody = """
+            {
+              "status": "INGRESADA"
+            }
+            """;
+
+        mockMvc.perform(patch("/api/v1/visits/" + visitId + "/status")
+                .header("Authorization", "Bearer " + conciergeToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(checkInBody))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.status").value("INGRESADA"))
+            .andExpect(jsonPath("$.data.entryAt").isNotEmpty());
+
+        String finishBody = """
+            {
+              "status": "FINALIZADA"
+            }
+            """;
+
+        mockMvc.perform(patch("/api/v1/visits/" + visitId + "/status")
+                .header("Authorization", "Bearer " + conciergeToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(finishBody))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.status").value("FINALIZADA"))
+            .andExpect(jsonPath("$.data.exitAt").isNotEmpty());
+    }
+
+    private String loginAndExtractToken(String email, String password) throws Exception {
+        String loginBody = """
+            {
+              "email": "%s",
+              "password": "%s"
+            }
+            """.formatted(email, password);
+
+        String responseBody = mockMvc.perform(post("/api/v1/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(loginBody))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+        JsonNode dataNode = objectMapper.readTree(responseBody).path("data");
+        return dataNode.path("accessToken").asText();
     }
 }
