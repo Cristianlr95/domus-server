@@ -24,7 +24,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/residents")
-@PreAuthorize("hasAnyRole('ADMIN','CONSERJERIA')")
 public class ResidentController {
 
     private final ResidentService residentService;
@@ -35,12 +34,14 @@ public class ResidentController {
 
     @PostMapping
     @Operation(summary = "Register a new resident")
+    @PreAuthorize("hasAuthority('residents.manage')")
     public ApiResponse<ResidentResponse> create(@Valid @RequestBody CreateResidentRequest request) {
         return ApiResponse.of(residentService.create(request));
     }
 
     @GetMapping
     @Operation(summary = "List residents with optional active and search filters")
+    @PreAuthorize("hasAuthority('residents.read')")
     public ApiResponse<List<ResidentResponse>> list(
         @RequestParam(required = false) Boolean active,
         @RequestParam(required = false) String search
@@ -50,6 +51,7 @@ public class ResidentController {
 
     @GetMapping("/linkable-users")
     @Operation(summary = "List resident users available to link")
+    @PreAuthorize("hasAuthority('residents.manage')")
     public ApiResponse<List<ResidentLinkedUserResponse>> listLinkableUsers(
         @RequestParam(required = false) UUID currentUserId
     ) {
@@ -58,12 +60,14 @@ public class ResidentController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Get resident detail")
+    @PreAuthorize("hasAuthority('residents.read')")
     public ApiResponse<ResidentResponse> getById(@PathVariable UUID id) {
         return ApiResponse.of(residentService.getById(id));
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "Update resident information")
+    @PreAuthorize("hasAuthority('residents.manage')")
     public ApiResponse<ResidentResponse> update(
         @PathVariable UUID id,
         @Valid @RequestBody UpdateResidentRequest request
@@ -73,6 +77,7 @@ public class ResidentController {
 
     @PatchMapping("/{id}/status")
     @Operation(summary = "Update resident active status")
+    @PreAuthorize("hasAuthority('residents.manage')")
     public ApiResponse<ResidentResponse> updateStatus(
         @PathVariable UUID id,
         @Valid @RequestBody UpdateResidentStatusRequest request

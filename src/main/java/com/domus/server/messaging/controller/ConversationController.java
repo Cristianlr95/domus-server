@@ -8,6 +8,7 @@ import com.domus.server.messaging.service.MessagingService;
 import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -26,6 +27,7 @@ public class ConversationController {
 
     @GetMapping
     @Operation(summary = "List current user conversations")
+    @PreAuthorize("hasAuthority('messaging.read')")
     public ApiResponse<List<ConversationResponse>> listConversations(
         @AuthenticationPrincipal AuthUser authUser
     ) {
@@ -34,6 +36,7 @@ public class ConversationController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Get conversation detail with messages")
+    @PreAuthorize("hasAuthority('messaging.read')")
     public ApiResponse<ConversationDetailResponse> getConversation(
         @PathVariable UUID id,
         @AuthenticationPrincipal AuthUser authUser

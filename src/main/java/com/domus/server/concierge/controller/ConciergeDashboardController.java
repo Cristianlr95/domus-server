@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/concierge")
-@PreAuthorize("hasAnyRole('ADMIN','CONSERJERIA')")
 public class ConciergeDashboardController {
 
     private final ConciergeDashboardService conciergeDashboardService;
@@ -25,12 +24,14 @@ public class ConciergeDashboardController {
 
     @GetMapping("/dashboard")
     @Operation(summary = "Get concierge operational dashboard")
+    @PreAuthorize("hasAuthority('concierge.dashboard.read')")
     public ApiResponse<ConciergeDashboardResponse> getDashboard() {
         return ApiResponse.of(conciergeDashboardService.getDashboard());
     }
 
     @GetMapping("/recent-activity")
     @Operation(summary = "Get concierge recent activity")
+    @PreAuthorize("hasAuthority('concierge.dashboard.read')")
     public ApiResponse<List<ConciergeRecentActivityResponse>> getRecentActivity(
         @RequestParam(defaultValue = "8") int limit
     ) {

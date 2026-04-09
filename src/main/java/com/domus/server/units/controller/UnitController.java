@@ -23,7 +23,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/units")
-@PreAuthorize("hasAnyRole('ADMIN','CONSERJERIA')")
 public class UnitController {
 
     private final UnitService unitService;
@@ -34,12 +33,14 @@ public class UnitController {
 
     @PostMapping
     @Operation(summary = "Register a new unit")
+    @PreAuthorize("hasAuthority('units.manage')")
     public ApiResponse<UnitResponse> create(@Valid @RequestBody CreateUnitRequest request) {
         return ApiResponse.of(unitService.create(request));
     }
 
     @GetMapping
     @Operation(summary = "List units with optional active and search filters")
+    @PreAuthorize("hasAuthority('units.read')")
     public ApiResponse<List<UnitResponse>> list(
         @RequestParam(required = false) Boolean active,
         @RequestParam(required = false) String search
@@ -49,12 +50,14 @@ public class UnitController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Get unit detail")
+    @PreAuthorize("hasAuthority('units.read')")
     public ApiResponse<UnitResponse> getById(@PathVariable UUID id) {
         return ApiResponse.of(unitService.getById(id));
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "Update unit information")
+    @PreAuthorize("hasAuthority('units.manage')")
     public ApiResponse<UnitResponse> update(
         @PathVariable UUID id,
         @Valid @RequestBody UpdateUnitRequest request
@@ -64,6 +67,7 @@ public class UnitController {
 
     @PatchMapping("/{id}/status")
     @Operation(summary = "Update unit active status")
+    @PreAuthorize("hasAuthority('units.manage')")
     public ApiResponse<UnitResponse> updateStatus(
         @PathVariable UUID id,
         @Valid @RequestBody UpdateUnitStatusRequest request

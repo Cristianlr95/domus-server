@@ -2,6 +2,7 @@ package com.domus.server.user.controller;
 
 import com.domus.server.common.api.ApiResponse;
 import com.domus.server.common.security.AuthUser;
+import com.domus.server.user.dto.response.PermissionResponse;
 import com.domus.server.user.dto.response.RoleResponse;
 import com.domus.server.user.dto.response.UserResponse;
 import com.domus.server.user.service.UserQueryService;
@@ -30,20 +31,26 @@ public class UserController {
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('users.read')")
     public ApiResponse<List<UserResponse>> listUsers() {
         return ApiResponse.of(userQueryService.listUsers());
     }
 
-    @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<UserResponse> getUser(@PathVariable UUID id) {
-        return ApiResponse.of(userQueryService.getUserById(id));
-    }
-
     @GetMapping("/roles/catalog")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('roles.read')")
     public ApiResponse<List<RoleResponse>> listRoles() {
         return ApiResponse.of(userQueryService.listRoles());
+    }
+
+    @GetMapping("/permissions/catalog")
+    @PreAuthorize("hasAuthority('permissions.read')")
+    public ApiResponse<List<PermissionResponse>> listPermissions() {
+        return ApiResponse.of(userQueryService.listPermissions());
+    }
+
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('users.read')")
+    public ApiResponse<UserResponse> getUser(@PathVariable UUID id) {
+        return ApiResponse.of(userQueryService.getUserById(id));
     }
 }

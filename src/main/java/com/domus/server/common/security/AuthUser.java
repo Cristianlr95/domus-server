@@ -2,6 +2,7 @@ package com.domus.server.common.security;
 
 import com.domus.server.user.entity.RoleName;
 import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.security.core.GrantedAuthority;
@@ -17,6 +18,7 @@ public class AuthUser implements UserDetails {
     private final String passwordHash;
     private final boolean active;
     private final Set<RoleName> roles;
+    private final Set<String> permissions;
 
     public AuthUser(
         UUID id,
@@ -25,7 +27,8 @@ public class AuthUser implements UserDetails {
         String email,
         String passwordHash,
         boolean active,
-        Set<RoleName> roles
+        Set<RoleName> roles,
+        Set<String> permissions
     ) {
         this.id = id;
         this.firstName = firstName;
@@ -34,6 +37,7 @@ public class AuthUser implements UserDetails {
         this.passwordHash = passwordHash;
         this.active = active;
         this.roles = roles;
+        this.permissions = permissions;
     }
 
     public UUID getId() {
@@ -52,11 +56,20 @@ public class AuthUser implements UserDetails {
         return roles;
     }
 
+    public Set<String> getPermissions() {
+        return permissions;
+    }
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return roles.stream()
+        Set<GrantedAuthority> authorities = new LinkedHashSet<>();
+        roles.stream()
             .map(role -> new SimpleGrantedAuthority("ROLE_" + role.name()))
-            .toList();
+            .forEach(authorities::add);
+        permissions.stream()
+            .map(SimpleGrantedAuthority::new)
+            .forEach(authorities::add);
+        return authorities;
     }
 
     @Override

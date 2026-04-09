@@ -52,13 +52,23 @@ class DomusServerApplicationTests {
                 .header("Authorization", "Bearer " + token))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.email").value("admin@domus.cl"))
-            .andExpect(jsonPath("$.data.roles[0]").exists());
+            .andExpect(jsonPath("$.data.roles[0]").exists())
+            .andExpect(jsonPath("$.data.permissions[0]").exists());
     }
 
     @Test
     void unauthenticatedUserCannotAccessProtectedEndpoint() throws Exception {
         mockMvc.perform(get("/api/v1/users/me"))
             .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void residentCannotAccessVisitsWithoutPermission() throws Exception {
+        String residentToken = loginAndExtractToken("residente@domus.cl", "Domus123!");
+
+        mockMvc.perform(get("/api/v1/visits")
+                .header("Authorization", "Bearer " + residentToken))
+            .andExpect(status().isForbidden());
     }
 
     @Test

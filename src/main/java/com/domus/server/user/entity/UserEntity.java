@@ -133,4 +133,11 @@ public class UserEntity {
             .map(RoleEntity::getName)
             .collect(Collectors.toSet());
     }
+
+    public Set<String> getPermissionCodes() {
+        return roles.stream()
+            .flatMap(role -> role.getPermissions().stream())
+            .map(PermissionEntity::getCode)
+            .collect(Collectors.toSet());
+    }
 }

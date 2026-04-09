@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -32,6 +33,7 @@ public class MessageController {
 
     @PostMapping
     @Operation(summary = "Send a message to another authenticated user")
+    @PreAuthorize("hasAuthority('messaging.create')")
     public ApiResponse<MessageResponse> sendMessage(
         @Valid @RequestBody SendMessageRequest request,
         @AuthenticationPrincipal AuthUser authUser
@@ -41,6 +43,7 @@ public class MessageController {
 
     @GetMapping
     @Operation(summary = "List messages for a conversation")
+    @PreAuthorize("hasAuthority('messaging.read')")
     public ApiResponse<List<MessageResponse>> listMessages(
         @RequestParam UUID conversationId,
         @AuthenticationPrincipal AuthUser authUser
@@ -50,6 +53,7 @@ public class MessageController {
 
     @GetMapping("/contacts")
     @Operation(summary = "List available messaging contacts")
+    @PreAuthorize("hasAnyAuthority('messaging.read','messaging.create')")
     public ApiResponse<List<MessagingUserSummaryResponse>> listContacts(
         @AuthenticationPrincipal AuthUser authUser
     ) {
@@ -58,6 +62,7 @@ public class MessageController {
 
     @PatchMapping("/{id}/read")
     @Operation(summary = "Mark a received message as read")
+    @PreAuthorize("hasAuthority('messaging.read')")
     public ApiResponse<MessageResponse> markAsRead(
         @PathVariable UUID id,
         @AuthenticationPrincipal AuthUser authUser

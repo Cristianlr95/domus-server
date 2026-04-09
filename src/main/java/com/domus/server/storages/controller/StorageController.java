@@ -24,7 +24,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/storages")
-@PreAuthorize("hasAnyRole('ADMIN','CONSERJERIA')")
 public class StorageController {
 
     private final StorageService storageService;
@@ -35,12 +34,14 @@ public class StorageController {
 
     @PostMapping
     @Operation(summary = "Register a new storage")
+    @PreAuthorize("hasAuthority('storages.manage')")
     public ApiResponse<StorageResponse> create(@Valid @RequestBody CreateStorageRequest request) {
         return ApiResponse.of(storageService.create(request));
     }
 
     @GetMapping
     @Operation(summary = "List storages with filters")
+    @PreAuthorize("hasAuthority('storages.read')")
     public ApiResponse<List<StorageResponse>> list(
         @RequestParam(required = false) Boolean active,
         @RequestParam(required = false) StorageOccupancyStatus occupancyStatus,
@@ -52,12 +53,14 @@ public class StorageController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Get storage detail")
+    @PreAuthorize("hasAuthority('storages.read')")
     public ApiResponse<StorageResponse> getById(@PathVariable UUID id) {
         return ApiResponse.of(storageService.getById(id));
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "Update storage information")
+    @PreAuthorize("hasAuthority('storages.manage')")
     public ApiResponse<StorageResponse> update(
         @PathVariable UUID id,
         @Valid @RequestBody UpdateStorageRequest request
@@ -67,6 +70,7 @@ public class StorageController {
 
     @PatchMapping("/{id}/status")
     @Operation(summary = "Update storage active and occupancy status")
+    @PreAuthorize("hasAuthority('storages.manage')")
     public ApiResponse<StorageResponse> updateStatus(
         @PathVariable UUID id,
         @Valid @RequestBody UpdateStorageStatusRequest request

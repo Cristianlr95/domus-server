@@ -27,7 +27,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/packages")
-@PreAuthorize("hasAnyRole('ADMIN','CONSERJERIA')")
 public class PackageController {
 
     private final PackageService packageService;
@@ -38,6 +37,7 @@ public class PackageController {
 
     @PostMapping
     @Operation(summary = "Register a new package")
+    @PreAuthorize("hasAuthority('packages.create')")
     public ApiResponse<PackageResponse> create(
         @Valid @RequestBody CreatePackageRequest request,
         @AuthenticationPrincipal AuthUser authUser
@@ -47,6 +47,7 @@ public class PackageController {
 
     @GetMapping
     @Operation(summary = "List packages with optional status and search filters")
+    @PreAuthorize("hasAuthority('packages.read')")
     public ApiResponse<List<PackageResponse>> list(
         @RequestParam(required = false) PackageStatus status,
         @RequestParam(required = false) String search
@@ -56,12 +57,14 @@ public class PackageController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Get package detail")
+    @PreAuthorize("hasAuthority('packages.read')")
     public ApiResponse<PackageResponse> getById(@PathVariable UUID id) {
         return ApiResponse.of(packageService.getById(id));
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "Update editable package information")
+    @PreAuthorize("hasAuthority('packages.update')")
     public ApiResponse<PackageResponse> update(
         @PathVariable UUID id,
         @Valid @RequestBody UpdatePackageRequest request
@@ -71,6 +74,7 @@ public class PackageController {
 
     @PatchMapping("/{id}/status")
     @Operation(summary = "Update package status")
+    @PreAuthorize("hasAuthority('packages.update')")
     public ApiResponse<PackageResponse> updateStatus(
         @PathVariable UUID id,
         @Valid @RequestBody UpdatePackageStatusRequest request
@@ -80,6 +84,7 @@ public class PackageController {
 
     @PatchMapping("/{id}/deliver")
     @Operation(summary = "Mark package as delivered")
+    @PreAuthorize("hasAuthority('packages.update')")
     public ApiResponse<PackageResponse> deliver(
         @PathVariable UUID id,
         @Valid @RequestBody DeliverPackageRequest request

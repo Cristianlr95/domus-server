@@ -26,7 +26,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/visits")
-@PreAuthorize("hasAnyRole('ADMIN','CONSERJERIA')")
 public class VisitController {
 
     private final VisitService visitService;
@@ -37,6 +36,7 @@ public class VisitController {
 
     @PostMapping
     @Operation(summary = "Register a new visit")
+    @PreAuthorize("hasAuthority('visits.create')")
     public ApiResponse<VisitResponse> create(
         @Valid @RequestBody CreateVisitRequest request,
         @AuthenticationPrincipal AuthUser authUser
@@ -46,6 +46,7 @@ public class VisitController {
 
     @GetMapping
     @Operation(summary = "List visits with optional status and search filters")
+    @PreAuthorize("hasAuthority('visits.read')")
     public ApiResponse<List<VisitResponse>> list(
         @RequestParam(required = false) VisitStatus status,
         @RequestParam(required = false) String search
@@ -55,12 +56,14 @@ public class VisitController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Get visit detail")
+    @PreAuthorize("hasAuthority('visits.read')")
     public ApiResponse<VisitResponse> getById(@PathVariable UUID id) {
         return ApiResponse.of(visitService.getById(id));
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "Update editable visit information")
+    @PreAuthorize("hasAuthority('visits.update')")
     public ApiResponse<VisitResponse> update(
         @PathVariable UUID id,
         @Valid @RequestBody UpdateVisitRequest request
@@ -70,6 +73,7 @@ public class VisitController {
 
     @PatchMapping("/{id}/status")
     @Operation(summary = "Update visit status")
+    @PreAuthorize("hasAuthority('visits.update')")
     public ApiResponse<VisitResponse> updateStatus(
         @PathVariable UUID id,
         @Valid @RequestBody UpdateVisitStatusRequest request

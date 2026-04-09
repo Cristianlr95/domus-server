@@ -24,7 +24,8 @@ public class CustomUserDetailsService implements UserDetailsService {
                 user.getEmail(),
                 user.getPasswordHash(),
                 user.isActive(),
-                user.getRoleNames()
+                user.getRoleNames(),
+                user.getPermissionCodes()
             ))
             .orElseThrow(() -> new UnauthorizedException("Invalid credentials."));
     }

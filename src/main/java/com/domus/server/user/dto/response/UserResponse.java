@@ -12,6 +12,7 @@ public record UserResponse(
     String email,
     boolean active,
     Set<RoleName> roles,
+    Set<String> permissions,
     Instant createdAt,
     Instant updatedAt
 ) {

@@ -8,6 +8,7 @@ import com.domus.server.notifications.service.NotificationService;
 import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -28,6 +29,7 @@ public class NotificationController {
 
     @GetMapping
     @Operation(summary = "List current user notifications")
+    @PreAuthorize("hasAuthority('notifications.read')")
     public ApiResponse<List<NotificationResponse>> listNotifications(
         @AuthenticationPrincipal AuthUser authUser,
         @RequestParam(required = false) Boolean unreadOnly
@@ -37,6 +39,7 @@ public class NotificationController {
 
     @GetMapping("/unread-count")
     @Operation(summary = "Get unread notification count for current user")
+    @PreAuthorize("hasAuthority('notifications.read')")
     public ApiResponse<NotificationUnreadCountResponse> unreadCount(
         @AuthenticationPrincipal AuthUser authUser
     ) {
@@ -45,6 +48,7 @@ public class NotificationController {
 
     @PatchMapping("/{id}/read")
     @Operation(summary = "Mark notification as read")
+    @PreAuthorize("hasAuthority('notifications.read')")
     public ApiResponse<NotificationResponse> markAsRead(
         @PathVariable UUID id,
         @AuthenticationPrincipal AuthUser authUser

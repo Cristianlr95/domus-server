@@ -25,7 +25,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/parking")
-@PreAuthorize("hasAnyRole('ADMIN','CONSERJERIA')")
 public class ParkingController {
 
     private final ParkingService parkingService;
@@ -36,12 +35,14 @@ public class ParkingController {
 
     @PostMapping
     @Operation(summary = "Register a new parking spot")
+    @PreAuthorize("hasAuthority('parking.manage')")
     public ApiResponse<ParkingResponse> create(@Valid @RequestBody CreateParkingRequest request) {
         return ApiResponse.of(parkingService.create(request));
     }
 
     @GetMapping
     @Operation(summary = "List parking spots with filters")
+    @PreAuthorize("hasAuthority('parking.read')")
     public ApiResponse<List<ParkingResponse>> list(
         @RequestParam(required = false) Boolean active,
         @RequestParam(required = false) ParkingOccupancyStatus occupancyStatus,
@@ -53,12 +54,14 @@ public class ParkingController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Get parking spot detail")
+    @PreAuthorize("hasAuthority('parking.read')")
     public ApiResponse<ParkingResponse> getById(@PathVariable UUID id) {
         return ApiResponse.of(parkingService.getById(id));
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "Update parking spot information")
+    @PreAuthorize("hasAuthority('parking.manage')")
     public ApiResponse<ParkingResponse> update(
         @PathVariable UUID id,
         @Valid @RequestBody UpdateParkingRequest request
@@ -68,6 +71,7 @@ public class ParkingController {
 
     @PatchMapping("/{id}/status")
     @Operation(summary = "Update parking spot active and occupancy status")
+    @PreAuthorize("hasAuthority('parking.manage')")
     public ApiResponse<ParkingResponse> updateStatus(
         @PathVariable UUID id,
         @Valid @RequestBody UpdateParkingStatusRequest request
