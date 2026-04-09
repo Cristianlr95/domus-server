@@ -1,6 +1,7 @@
 package com.domus.server.residents.controller;
 
 import com.domus.server.common.api.ApiResponse;
+import com.domus.server.common.security.AuthUser;
 import com.domus.server.residents.dto.request.CreateResidentRequest;
 import com.domus.server.residents.dto.request.UpdateResidentRequest;
 import com.domus.server.residents.dto.request.UpdateResidentStatusRequest;
@@ -12,6 +13,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -35,8 +37,11 @@ public class ResidentController {
     @PostMapping
     @Operation(summary = "Register a new resident")
     @PreAuthorize("hasAuthority('residents.manage')")
-    public ApiResponse<ResidentResponse> create(@Valid @RequestBody CreateResidentRequest request) {
-        return ApiResponse.of(residentService.create(request));
+    public ApiResponse<ResidentResponse> create(
+        @Valid @RequestBody CreateResidentRequest request,
+        @AuthenticationPrincipal AuthUser authUser
+    ) {
+        return ApiResponse.of(residentService.create(request, authUser.getId()));
     }
 
     @GetMapping
@@ -70,9 +75,10 @@ public class ResidentController {
     @PreAuthorize("hasAuthority('residents.manage')")
     public ApiResponse<ResidentResponse> update(
         @PathVariable UUID id,
-        @Valid @RequestBody UpdateResidentRequest request
+        @Valid @RequestBody UpdateResidentRequest request,
+        @AuthenticationPrincipal AuthUser authUser
     ) {
-        return ApiResponse.of(residentService.update(id, request));
+        return ApiResponse.of(residentService.update(id, request, authUser.getId()));
     }
 
     @PatchMapping("/{id}/status")
@@ -80,8 +86,9 @@ public class ResidentController {
     @PreAuthorize("hasAuthority('residents.manage')")
     public ApiResponse<ResidentResponse> updateStatus(
         @PathVariable UUID id,
-        @Valid @RequestBody UpdateResidentStatusRequest request
+        @Valid @RequestBody UpdateResidentStatusRequest request,
+        @AuthenticationPrincipal AuthUser authUser
     ) {
-        return ApiResponse.of(residentService.updateStatus(id, request));
+        return ApiResponse.of(residentService.updateStatus(id, request, authUser.getId()));
     }
 }

@@ -66,9 +66,10 @@ public class VisitController {
     @PreAuthorize("hasAuthority('visits.update')")
     public ApiResponse<VisitResponse> update(
         @PathVariable UUID id,
-        @Valid @RequestBody UpdateVisitRequest request
+        @Valid @RequestBody UpdateVisitRequest request,
+        @AuthenticationPrincipal AuthUser authUser
     ) {
-        return ApiResponse.of(visitService.update(id, request));
+        return ApiResponse.of(visitService.update(id, request, authUser.getId()));
     }
 
     @PatchMapping("/{id}/status")
@@ -76,8 +77,9 @@ public class VisitController {
     @PreAuthorize("hasAuthority('visits.update')")
     public ApiResponse<VisitResponse> updateStatus(
         @PathVariable UUID id,
-        @Valid @RequestBody UpdateVisitStatusRequest request
+        @Valid @RequestBody UpdateVisitStatusRequest request,
+        @AuthenticationPrincipal AuthUser authUser
     ) {
-        return ApiResponse.of(visitService.updateStatus(id, request));
+        return ApiResponse.of(visitService.updateStatus(id, request, authUser.getId()));
     }
 }

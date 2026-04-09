@@ -72,6 +72,58 @@ class DomusServerApplicationTests {
     }
 
     @Test
+    void adminCanReviewAuditLogsAndResidentCannotAccessThem() throws Exception {
+        String conciergeToken = loginAndExtractToken("conserjeria@domus.cl", "Domus123!");
+        String adminToken = loginAndExtractToken("admin@domus.cl", "Domus123!");
+        String residentToken = loginAndExtractToken("residente@domus.cl", "Domus123!");
+
+        String createVisitBody = """
+            {
+              "visitorName": "Andrea Leon",
+              "visitorDocument": "11.222.333-4",
+              "visitorPhone": "+56922223333",
+              "vehiclePlate": "AAAA11",
+              "residentUserId": "bb4f8752-3baa-46fb-934b-54cc2d9d2003",
+              "residentName": "Rocio Residente",
+              "unitLabel": "Depto 804",
+              "blockLabel": "Torre A",
+              "observations": "Auditoria de visitas.",
+              "registrationType": "MANUAL_CONSERJERIA"
+            }
+            """;
+
+        mockMvc.perform(post("/api/v1/visits")
+                .header("Authorization", "Bearer " + conciergeToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createVisitBody))
+            .andExpect(status().isOk());
+
+        String auditResponse = mockMvc.perform(get("/api/v1/audit-logs")
+                .header("Authorization", "Bearer " + adminToken)
+                .param("entityType", "VISIT")
+                .param("action", "CREATE"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[0].entityType").value("VISIT"))
+            .andExpect(jsonPath("$.data[0].action").value("CREATE"))
+            .andExpect(jsonPath("$.data[0].actor.email").value("conserjeria@domus.cl"))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+        String auditLogId = objectMapper.readTree(auditResponse).path("data").get(0).path("id").asText();
+
+        mockMvc.perform(get("/api/v1/audit-logs/" + auditLogId)
+                .header("Authorization", "Bearer " + adminToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.id").value(auditLogId))
+            .andExpect(jsonPath("$.data.summary").isNotEmpty());
+
+        mockMvc.perform(get("/api/v1/audit-logs")
+                .header("Authorization", "Bearer " + residentToken))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
     void conciergeCanCreateListAndUpdateVisitStatus() throws Exception {
         String conciergeToken = loginAndExtractToken("conserjeria@domus.cl", "Domus123!");
 

@@ -1,6 +1,8 @@
 package com.domus.server.visits.service;
 
 import com.domus.server.common.exception.ResourceNotFoundException;
+import com.domus.server.audit.entity.AuditAction;
+import com.domus.server.audit.service.AuditLogService;
 import com.domus.server.notifications.service.NotificationService;
 import com.domus.server.user.entity.RoleName;
 import com.domus.server.user.entity.UserEntity;
@@ -31,17 +33,20 @@ public class VisitService {
     private final UserRepository userRepository;
     private final VisitMapper visitMapper;
     private final NotificationService notificationService;
+    private final AuditLogService auditLogService;
 
     public VisitService(
         VisitRepository visitRepository,
         UserRepository userRepository,
         VisitMapper visitMapper,
-        NotificationService notificationService
+        NotificationService notificationService,
+        AuditLogService auditLogService
     ) {
         this.visitRepository = visitRepository;
         this.userRepository = userRepository;
         this.visitMapper = visitMapper;
         this.notificationService = notificationService;
+        this.auditLogService = auditLogService;
     }
 
     public VisitResponse create(CreateVisitRequest request, UUID recordedByUserId) {
@@ -68,7 +73,18 @@ public class VisitService {
 
         VisitEntity savedVisit = visitRepository.save(visit);
         notificationService.notifyVisitRegistered(savedVisit);
-        return visitMapper.toResponse(savedVisit);
+        VisitResponse response = visitMapper.toResponse(savedVisit);
+        auditLogService.record(
+            recordedByUserId,
+            "VISIT",
+            savedVisit.getId().toString(),
+            AuditAction.CREATE,
+            "Visit registered for " + savedVisit.getVisitorName() + ".",
+            null,
+            response,
+            java.util.Map.of("registrationType", savedVisit.getRegistrationType())
+        );
+        return response;
     }
 
     @Transactional(readOnly = true)
@@ -87,9 +103,10 @@ public class VisitService {
         return visitMapper.toResponse(getVisit(id));
     }
 
-    public VisitResponse update(UUID id, UpdateVisitRequest request) {
+    public VisitResponse update(UUID id, UpdateVisitRequest request, UUID actorUserId) {
         VisitEntity visit = getVisit(id);
         ensureEditable(visit);
+        VisitResponse previousState = visitMapper.toResponse(visit);
 
         UserEntity residentUser = resolveResident(request.residentUserId());
         applyEditableFields(
@@ -106,12 +123,26 @@ public class VisitService {
             request.registrationType()
         );
 
-        return visitMapper.toResponse(visitRepository.save(visit));
+        VisitEntity savedVisit = visitRepository.save(visit);
+        VisitResponse response = visitMapper.toResponse(savedVisit);
+        auditLogService.record(
+            actorUserId,
+            "VISIT",
+            savedVisit.getId().toString(),
+            AuditAction.UPDATE,
+            "Visit information updated for " + savedVisit.getVisitorName() + ".",
+            previousState,
+            response,
+            null
+        );
+        return response;
     }
 
-    public VisitResponse updateStatus(UUID id, UpdateVisitStatusRequest request) {
+    public VisitResponse updateStatus(UUID id, UpdateVisitStatusRequest request, UUID actorUserId) {
         VisitEntity visit = getVisit(id);
         VisitStatus nextStatus = request.status();
+        VisitResponse previousState = visitMapper.toResponse(visit);
+        VisitStatus previousStatus = visit.getStatus();
 
         validateTransition(visit.getStatus(), nextStatus);
 
@@ -129,7 +160,25 @@ public class VisitService {
         }
 
         visit.setStatus(nextStatus);
-        return visitMapper.toResponse(visitRepository.save(visit));
+        VisitEntity savedVisit = visitRepository.save(visit);
+        VisitResponse response = visitMapper.toResponse(savedVisit);
+        AuditAction action = switch (nextStatus) {
+            case INGRESADA -> AuditAction.VISIT_CHECKIN;
+            case FINALIZADA -> AuditAction.VISIT_CHECKOUT;
+            default -> AuditAction.STATUS_CHANGE;
+        };
+
+        auditLogService.record(
+            actorUserId,
+            "VISIT",
+            savedVisit.getId().toString(),
+            action,
+            "Visit status changed from " + previousStatus + " to " + nextStatus + ".",
+            previousState,
+            response,
+            java.util.Map.of("previousStatus", previousStatus, "newStatus", nextStatus)
+        );
+        return response;
     }
 
     private VisitEntity getVisit(UUID id) {

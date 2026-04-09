@@ -1,5 +1,7 @@
 package com.domus.server.packages.service;
 
+import com.domus.server.audit.entity.AuditAction;
+import com.domus.server.audit.service.AuditLogService;
 import com.domus.server.common.exception.ResourceNotFoundException;
 import com.domus.server.packages.dto.request.CreatePackageRequest;
 import com.domus.server.packages.dto.request.DeliverPackageRequest;
@@ -32,17 +34,20 @@ public class PackageService {
     private final UserRepository userRepository;
     private final PackageMapper packageMapper;
     private final NotificationService notificationService;
+    private final AuditLogService auditLogService;
 
     public PackageService(
         PackageRepository packageRepository,
         UserRepository userRepository,
         PackageMapper packageMapper,
-        NotificationService notificationService
+        NotificationService notificationService,
+        AuditLogService auditLogService
     ) {
         this.packageRepository = packageRepository;
         this.userRepository = userRepository;
         this.packageMapper = packageMapper;
         this.notificationService = notificationService;
+        this.auditLogService = auditLogService;
     }
 
     public PackageResponse create(CreatePackageRequest request, UUID recordedByUserId) {
@@ -69,7 +74,18 @@ public class PackageService {
 
         PackageEntity savedPackage = packageRepository.save(packageEntity);
         notificationService.notifyPackageReceived(savedPackage);
-        return packageMapper.toResponse(savedPackage);
+        PackageResponse response = packageMapper.toResponse(savedPackage);
+        auditLogService.record(
+            recordedByUserId,
+            "PACKAGE",
+            savedPackage.getId().toString(),
+            AuditAction.CREATE,
+            "Package registered: " + savedPackage.getDescription() + ".",
+            null,
+            response,
+            java.util.Map.of("status", savedPackage.getStatus())
+        );
+        return response;
     }
 
     @Transactional(readOnly = true)
@@ -88,9 +104,10 @@ public class PackageService {
         return packageMapper.toResponse(getPackage(id));
     }
 
-    public PackageResponse update(UUID id, UpdatePackageRequest request) {
+    public PackageResponse update(UUID id, UpdatePackageRequest request, UUID actorUserId) {
         PackageEntity packageEntity = getPackage(id);
         ensureEditable(packageEntity);
+        PackageResponse previousState = packageMapper.toResponse(packageEntity);
 
         UserEntity residentUser = resolveResident(request.residentUserId());
         applyEditableFields(
@@ -107,12 +124,26 @@ public class PackageService {
             request.receivedByName()
         );
 
-        return packageMapper.toResponse(packageRepository.save(packageEntity));
+        PackageEntity savedPackage = packageRepository.save(packageEntity);
+        PackageResponse response = packageMapper.toResponse(savedPackage);
+        auditLogService.record(
+            actorUserId,
+            "PACKAGE",
+            savedPackage.getId().toString(),
+            AuditAction.UPDATE,
+            "Package information updated: " + savedPackage.getDescription() + ".",
+            previousState,
+            response,
+            null
+        );
+        return response;
     }
 
-    public PackageResponse updateStatus(UUID id, UpdatePackageStatusRequest request) {
+    public PackageResponse updateStatus(UUID id, UpdatePackageStatusRequest request, UUID actorUserId) {
         PackageEntity packageEntity = getPackage(id);
         PackageStatus nextStatus = request.status();
+        PackageResponse previousState = packageMapper.toResponse(packageEntity);
+        PackageStatus previousStatus = packageEntity.getStatus();
 
         validateTransition(packageEntity.getStatus(), nextStatus);
 
@@ -121,11 +152,24 @@ public class PackageService {
         }
 
         packageEntity.setStatus(nextStatus);
-        return packageMapper.toResponse(packageRepository.save(packageEntity));
+        PackageEntity savedPackage = packageRepository.save(packageEntity);
+        PackageResponse response = packageMapper.toResponse(savedPackage);
+        auditLogService.record(
+            actorUserId,
+            "PACKAGE",
+            savedPackage.getId().toString(),
+            AuditAction.STATUS_CHANGE,
+            "Package status changed from " + previousStatus + " to " + nextStatus + ".",
+            previousState,
+            response,
+            java.util.Map.of("previousStatus", previousStatus, "newStatus", nextStatus)
+        );
+        return response;
     }
 
-    public PackageResponse deliver(UUID id, DeliverPackageRequest request) {
+    public PackageResponse deliver(UUID id, DeliverPackageRequest request, UUID actorUserId) {
         PackageEntity packageEntity = getPackage(id);
+        PackageResponse previousState = packageMapper.toResponse(packageEntity);
 
         if (packageEntity.getStatus() == PackageStatus.ENTREGADA) {
             throw new IllegalArgumentException("The package has already been delivered.");
@@ -139,7 +183,19 @@ public class PackageService {
         packageEntity.setDeliveredAt(request.deliveredAt() == null ? Instant.now() : request.deliveredAt());
         packageEntity.setStatus(PackageStatus.ENTREGADA);
 
-        return packageMapper.toResponse(packageRepository.save(packageEntity));
+        PackageEntity savedPackage = packageRepository.save(packageEntity);
+        PackageResponse response = packageMapper.toResponse(savedPackage);
+        auditLogService.record(
+            actorUserId,
+            "PACKAGE",
+            savedPackage.getId().toString(),
+            AuditAction.DELIVERY,
+            "Package delivered to " + savedPackage.getDeliveredToName() + ".",
+            previousState,
+            response,
+            java.util.Map.of("deliveredToName", savedPackage.getDeliveredToName())
+        );
+        return response;
     }
 
     private PackageEntity getPackage(UUID id) {

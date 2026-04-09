@@ -1,5 +1,7 @@
 package com.domus.server.messaging.service;
 
+import com.domus.server.audit.entity.AuditAction;
+import com.domus.server.audit.service.AuditLogService;
 import com.domus.server.common.exception.ResourceNotFoundException;
 import com.domus.server.messaging.dto.request.SendMessageRequest;
 import com.domus.server.messaging.dto.response.ConversationDetailResponse;
@@ -30,19 +32,22 @@ public class MessagingService {
     private final UserRepository userRepository;
     private final MessagingMapper messagingMapper;
     private final NotificationService notificationService;
+    private final AuditLogService auditLogService;
 
     public MessagingService(
         ConversationRepository conversationRepository,
         MessageRepository messageRepository,
         UserRepository userRepository,
         MessagingMapper messagingMapper,
-        NotificationService notificationService
+        NotificationService notificationService,
+        AuditLogService auditLogService
     ) {
         this.conversationRepository = conversationRepository;
         this.messageRepository = messageRepository;
         this.userRepository = userRepository;
         this.messagingMapper = messagingMapper;
         this.notificationService = notificationService;
+        this.auditLogService = auditLogService;
     }
 
     public MessageResponse sendMessage(UUID senderUserId, SendMessageRequest request) {
@@ -66,7 +71,21 @@ public class MessagingService {
         MessageEntity savedMessage = messageRepository.save(message);
         updateConversationMetadata(conversation, sender, savedMessage.getContent(), savedMessage.getCreatedAt());
         notificationService.notifyMessageReceived(savedMessage);
-        return messagingMapper.toMessageResponse(savedMessage);
+        MessageResponse response = messagingMapper.toMessageResponse(savedMessage);
+        auditLogService.record(
+            senderUserId,
+            "MESSAGE",
+            savedMessage.getId().toString(),
+            AuditAction.MESSAGE_SENT,
+            "Message sent to " + recipient.getEmail() + ".",
+            null,
+            response,
+            java.util.Map.of(
+                "conversationId", conversation.getId(),
+                "recipientUserId", recipient.getId()
+            )
+        );
+        return response;
     }
 
     @Transactional(readOnly = true)

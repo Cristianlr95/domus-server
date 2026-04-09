@@ -1,5 +1,7 @@
 package com.domus.server.residents.service;
 
+import com.domus.server.audit.entity.AuditAction;
+import com.domus.server.audit.service.AuditLogService;
 import com.domus.server.common.exception.ResourceNotFoundException;
 import com.domus.server.residents.dto.request.CreateResidentRequest;
 import com.domus.server.residents.dto.request.UpdateResidentRequest;
@@ -30,20 +32,23 @@ public class ResidentService {
     private final UserRepository userRepository;
     private final UnitRepository unitRepository;
     private final ResidentMapper residentMapper;
+    private final AuditLogService auditLogService;
 
     public ResidentService(
         ResidentRepository residentRepository,
         UserRepository userRepository,
         UnitRepository unitRepository,
-        ResidentMapper residentMapper
+        ResidentMapper residentMapper,
+        AuditLogService auditLogService
     ) {
         this.residentRepository = residentRepository;
         this.userRepository = userRepository;
         this.unitRepository = unitRepository;
         this.residentMapper = residentMapper;
+        this.auditLogService = auditLogService;
     }
 
-    public ResidentResponse create(CreateResidentRequest request) {
+    public ResidentResponse create(CreateResidentRequest request, UUID actorUserId) {
         validateUniqueFields(request.documentNumber(), request.email(), request.linkedUserId(), null);
 
         ResidentEntity resident = new ResidentEntity();
@@ -61,7 +66,18 @@ public class ResidentService {
             request.unitId()
         );
 
-        return residentMapper.toResponse(residentRepository.save(resident));
+        ResidentResponse response = residentMapper.toResponse(residentRepository.save(resident));
+        auditLogService.record(
+            actorUserId,
+            "RESIDENT",
+            response.id().toString(),
+            AuditAction.CREATE,
+            "Resident created: " + response.firstName() + " " + response.lastName() + ".",
+            null,
+            response,
+            null
+        );
+        return response;
     }
 
     @Transactional(readOnly = true)
@@ -80,8 +96,9 @@ public class ResidentService {
         return residentMapper.toResponse(getResident(id));
     }
 
-    public ResidentResponse update(UUID id, UpdateResidentRequest request) {
+    public ResidentResponse update(UUID id, UpdateResidentRequest request, UUID actorUserId) {
         ResidentEntity resident = getResident(id);
+        ResidentResponse previousState = residentMapper.toResponse(resident);
         validateUniqueFields(request.documentNumber(), request.email(), request.linkedUserId(), resident.getId());
 
         applyEditableFields(
@@ -96,13 +113,36 @@ public class ResidentService {
             request.unitId()
         );
 
-        return residentMapper.toResponse(residentRepository.save(resident));
+        ResidentResponse response = residentMapper.toResponse(residentRepository.save(resident));
+        auditLogService.record(
+            actorUserId,
+            "RESIDENT",
+            response.id().toString(),
+            AuditAction.UPDATE,
+            "Resident updated: " + response.firstName() + " " + response.lastName() + ".",
+            previousState,
+            response,
+            null
+        );
+        return response;
     }
 
-    public ResidentResponse updateStatus(UUID id, UpdateResidentStatusRequest request) {
+    public ResidentResponse updateStatus(UUID id, UpdateResidentStatusRequest request, UUID actorUserId) {
         ResidentEntity resident = getResident(id);
+        ResidentResponse previousState = residentMapper.toResponse(resident);
         resident.setActive(request.active());
-        return residentMapper.toResponse(residentRepository.save(resident));
+        ResidentResponse response = residentMapper.toResponse(residentRepository.save(resident));
+        auditLogService.record(
+            actorUserId,
+            "RESIDENT",
+            response.id().toString(),
+            AuditAction.STATUS_CHANGE,
+            "Resident active status changed to " + response.active() + ".",
+            previousState,
+            response,
+            java.util.Map.of("active", response.active())
+        );
+        return response;
     }
 
     @Transactional(readOnly = true)

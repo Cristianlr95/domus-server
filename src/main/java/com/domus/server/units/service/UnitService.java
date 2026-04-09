@@ -1,5 +1,7 @@
 package com.domus.server.units.service;
 
+import com.domus.server.audit.entity.AuditAction;
+import com.domus.server.audit.service.AuditLogService;
 import com.domus.server.common.exception.ResourceNotFoundException;
 import com.domus.server.residents.entity.ResidentEntity;
 import com.domus.server.residents.repository.ResidentRepository;
@@ -27,14 +29,21 @@ public class UnitService {
     private final UnitRepository unitRepository;
     private final ResidentRepository residentRepository;
     private final UnitMapper unitMapper;
+    private final AuditLogService auditLogService;
 
-    public UnitService(UnitRepository unitRepository, ResidentRepository residentRepository, UnitMapper unitMapper) {
+    public UnitService(
+        UnitRepository unitRepository,
+        ResidentRepository residentRepository,
+        UnitMapper unitMapper,
+        AuditLogService auditLogService
+    ) {
         this.unitRepository = unitRepository;
         this.residentRepository = residentRepository;
         this.unitMapper = unitMapper;
+        this.auditLogService = auditLogService;
     }
 
-    public UnitResponse create(CreateUnitRequest request) {
+    public UnitResponse create(CreateUnitRequest request, UUID actorUserId) {
         validateUniqueUnit(request.unitCode(), request.blockLabel(), null);
 
         UnitEntity unit = new UnitEntity();
@@ -44,7 +53,18 @@ public class UnitService {
 
         UnitEntity savedUnit = unitRepository.save(unit);
         assignResidents(savedUnit, request.residentIds());
-        return toResponse(savedUnit);
+        UnitResponse response = toResponse(savedUnit);
+        auditLogService.record(
+            actorUserId,
+            "UNIT",
+            response.id().toString(),
+            AuditAction.CREATE,
+            "Unit created: " + response.blockLabel() + " " + response.unitCode() + ".",
+            null,
+            response,
+            java.util.Map.of("residentCount", response.residents().size())
+        );
+        return response;
     }
 
     @Transactional(readOnly = true)
@@ -63,20 +83,44 @@ public class UnitService {
         return toResponse(getUnit(id));
     }
 
-    public UnitResponse update(UUID id, UpdateUnitRequest request) {
+    public UnitResponse update(UUID id, UpdateUnitRequest request, UUID actorUserId) {
         UnitEntity unit = getUnit(id);
+        UnitResponse previousState = toResponse(unit);
         validateUniqueUnit(request.unitCode(), request.blockLabel(), unit.getId());
 
         applyEditableFields(unit, request.unitCode(), request.blockLabel(), request.floorNumber(), request.observations());
         UnitEntity savedUnit = unitRepository.save(unit);
         assignResidents(savedUnit, request.residentIds());
-        return toResponse(savedUnit);
+        UnitResponse response = toResponse(savedUnit);
+        auditLogService.record(
+            actorUserId,
+            "UNIT",
+            response.id().toString(),
+            AuditAction.UPDATE,
+            "Unit updated: " + response.blockLabel() + " " + response.unitCode() + ".",
+            previousState,
+            response,
+            java.util.Map.of("residentCount", response.residents().size())
+        );
+        return response;
     }
 
-    public UnitResponse updateStatus(UUID id, UpdateUnitStatusRequest request) {
+    public UnitResponse updateStatus(UUID id, UpdateUnitStatusRequest request, UUID actorUserId) {
         UnitEntity unit = getUnit(id);
+        UnitResponse previousState = toResponse(unit);
         unit.setActive(request.active());
-        return toResponse(unitRepository.save(unit));
+        UnitResponse response = toResponse(unitRepository.save(unit));
+        auditLogService.record(
+            actorUserId,
+            "UNIT",
+            response.id().toString(),
+            AuditAction.STATUS_CHANGE,
+            "Unit active status changed to " + response.active() + ".",
+            previousState,
+            response,
+            java.util.Map.of("active", response.active())
+        );
+        return response;
     }
 
     private UnitEntity getUnit(UUID id) {

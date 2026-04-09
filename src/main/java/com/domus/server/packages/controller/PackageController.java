@@ -67,9 +67,10 @@ public class PackageController {
     @PreAuthorize("hasAuthority('packages.update')")
     public ApiResponse<PackageResponse> update(
         @PathVariable UUID id,
-        @Valid @RequestBody UpdatePackageRequest request
+        @Valid @RequestBody UpdatePackageRequest request,
+        @AuthenticationPrincipal AuthUser authUser
     ) {
-        return ApiResponse.of(packageService.update(id, request));
+        return ApiResponse.of(packageService.update(id, request, authUser.getId()));
     }
 
     @PatchMapping("/{id}/status")
@@ -77,9 +78,10 @@ public class PackageController {
     @PreAuthorize("hasAuthority('packages.update')")
     public ApiResponse<PackageResponse> updateStatus(
         @PathVariable UUID id,
-        @Valid @RequestBody UpdatePackageStatusRequest request
+        @Valid @RequestBody UpdatePackageStatusRequest request,
+        @AuthenticationPrincipal AuthUser authUser
     ) {
-        return ApiResponse.of(packageService.updateStatus(id, request));
+        return ApiResponse.of(packageService.updateStatus(id, request, authUser.getId()));
     }
 
     @PatchMapping("/{id}/deliver")
@@ -87,8 +89,9 @@ public class PackageController {
     @PreAuthorize("hasAuthority('packages.update')")
     public ApiResponse<PackageResponse> deliver(
         @PathVariable UUID id,
-        @Valid @RequestBody DeliverPackageRequest request
+        @Valid @RequestBody DeliverPackageRequest request,
+        @AuthenticationPrincipal AuthUser authUser
     ) {
-        return ApiResponse.of(packageService.deliver(id, request));
+        return ApiResponse.of(packageService.deliver(id, request, authUser.getId()));
     }
 }

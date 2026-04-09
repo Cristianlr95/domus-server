@@ -1,6 +1,7 @@
 package com.domus.server.units.controller;
 
 import com.domus.server.common.api.ApiResponse;
+import com.domus.server.common.security.AuthUser;
 import com.domus.server.units.dto.request.CreateUnitRequest;
 import com.domus.server.units.dto.request.UpdateUnitRequest;
 import com.domus.server.units.dto.request.UpdateUnitStatusRequest;
@@ -11,6 +12,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -34,8 +36,11 @@ public class UnitController {
     @PostMapping
     @Operation(summary = "Register a new unit")
     @PreAuthorize("hasAuthority('units.manage')")
-    public ApiResponse<UnitResponse> create(@Valid @RequestBody CreateUnitRequest request) {
-        return ApiResponse.of(unitService.create(request));
+    public ApiResponse<UnitResponse> create(
+        @Valid @RequestBody CreateUnitRequest request,
+        @AuthenticationPrincipal AuthUser authUser
+    ) {
+        return ApiResponse.of(unitService.create(request, authUser.getId()));
     }
 
     @GetMapping
@@ -60,9 +65,10 @@ public class UnitController {
     @PreAuthorize("hasAuthority('units.manage')")
     public ApiResponse<UnitResponse> update(
         @PathVariable UUID id,
-        @Valid @RequestBody UpdateUnitRequest request
+        @Valid @RequestBody UpdateUnitRequest request,
+        @AuthenticationPrincipal AuthUser authUser
     ) {
-        return ApiResponse.of(unitService.update(id, request));
+        return ApiResponse.of(unitService.update(id, request, authUser.getId()));
     }
 
     @PatchMapping("/{id}/status")
@@ -70,8 +76,9 @@ public class UnitController {
     @PreAuthorize("hasAuthority('units.manage')")
     public ApiResponse<UnitResponse> updateStatus(
         @PathVariable UUID id,
-        @Valid @RequestBody UpdateUnitStatusRequest request
+        @Valid @RequestBody UpdateUnitStatusRequest request,
+        @AuthenticationPrincipal AuthUser authUser
     ) {
-        return ApiResponse.of(unitService.updateStatus(id, request));
+        return ApiResponse.of(unitService.updateStatus(id, request, authUser.getId()));
     }
 }
