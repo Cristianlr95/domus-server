@@ -16,7 +16,10 @@ public class OpenApiConfig {
         String securitySchemeName = "bearerAuth";
 
         return new OpenAPI()
-            .info(new Info().title("Domus API").version("v1").description("Authentication and user foundation for Domus."))
+            .info(new Info()
+                .title("Domus API")
+                .version("v1")
+                .description("Backend API for authentication, residents, operations, messaging, notifications, and audit."))
             .addSecurityItem(new SecurityRequirement().addList(securitySchemeName))
             .components(new Components().addSecuritySchemes(
                 securitySchemeName,

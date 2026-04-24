@@ -34,3 +34,8 @@ build/
 
 ### Tooling ###
 .jqwik-database
+
+### Local env ###
+.env
+.env.*
+!.env.example

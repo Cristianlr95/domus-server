@@ -7,6 +7,8 @@ public record ApiError(
     String code,
     String message,
     List<ApiErrorDetail> details,
-    Instant timestamp
+    Instant timestamp,
+    String path,
+    String correlationId
 ) {
 }

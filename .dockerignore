@@ -1,0 +1,12 @@
+.git
+.github
+.idea
+.vscode
+target
+node_modules
+docs
+.env
+.env.*
+!.env.example
+README.md
+HELP.md
