@@ -3,6 +3,9 @@
 ## Descripcion
 Backend REST para Domus, una plataforma de administracion residencial orientada a condominios y comunidades. Expone servicios para autenticacion, usuarios, unidades, residentes, visitas, encomiendas, estacionamientos, bodegas, mensajeria, notificaciones, auditoria y panel operativo de conserjeria.
 
+## Repositorios relacionados
+- Frontend cliente: [Cristianlr95/domus-app](https://github.com/Cristianlr95/domus-app)
+
 ## Problema que resuelve
 La operacion diaria de un edificio o condominio suele quedar repartida entre planillas, mensajes informales y registros manuales. Domus centraliza informacion operacional y de seguridad en una API con roles, permisos, trazabilidad y persistencia relacional.
 
@@ -109,7 +112,7 @@ En Windows:
 - Health check: `http://localhost:8080/actuator/health`
 
 ## Estado del proyecto
-Proyecto en desarrollo funcional. El backend ya contiene los dominios principales de operacion residencial y migraciones versionadas. No debe considerarse listo para produccion sin endurecer secretos, CORS, monitoreo, politicas de permisos por caso de uso y estrategia de despliegue.
+Proyecto en estado funcional. El backend ya contiene los dominios principales de operacion residencial, autenticacion JWT, control de permisos y migraciones versionadas. La evolucion pendiente se concentra en hardening productivo, observabilidad y autorizacion fina.
 
 ## Funcionalidades implementadas
 - Autenticacion JWT.
@@ -135,8 +138,8 @@ Proyecto en desarrollo funcional. El backend ya contiene los dominios principale
 ## Valor profesional del proyecto
 Este backend demuestra competencias en diseno de APIs REST con Spring Boot, modelado relacional, seguridad con JWT, migraciones controladas, separacion por dominios, documentacion OpenAPI, pruebas automatizadas y preparacion para despliegue con Docker. Tambien muestra criterio para construir software operativo con trazabilidad, roles y mantenibilidad.
 
-## Mejoras visuales sugeridas
-- Diagrama de arquitectura backend/frontend/base de datos.
-- Diagrama entidad-relacion simplificado de los modulos principales.
-- Captura de Swagger UI con endpoints agrupados.
-- GIF corto del flujo login -> dashboard -> registro de visita desde el frontend.
+## Que conviene revisar primero
+- Seguridad JWT y control de acceso por roles/permisos.
+- Modulos operativos: visitas, encomiendas, residentes, unidades y auditoria.
+- Migraciones Flyway y estructura modular por dominio.
+- Endpoints documentados con Swagger/OpenAPI.
