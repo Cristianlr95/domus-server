@@ -1,5 +1,7 @@
 package com.domus.server.storages.service;
 
+import com.domus.server.audit.entity.AuditAction;
+import com.domus.server.audit.service.AuditLogService;
 import com.domus.server.common.exception.ResourceNotFoundException;
 import com.domus.server.storages.dto.request.CreateStorageRequest;
 import com.domus.server.storages.dto.request.UpdateStorageRequest;
@@ -16,6 +18,8 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,15 +30,18 @@ public class StorageService {
     private final StorageRepository storageRepository;
     private final UnitRepository unitRepository;
     private final StorageMapper storageMapper;
+    private final AuditLogService auditLogService;
 
     public StorageService(
         StorageRepository storageRepository,
         UnitRepository unitRepository,
-        StorageMapper storageMapper
+        StorageMapper storageMapper,
+        AuditLogService auditLogService
     ) {
         this.storageRepository = storageRepository;
         this.unitRepository = unitRepository;
         this.storageMapper = storageMapper;
+        this.auditLogService = auditLogService;
     }
 
     public StorageResponse create(CreateStorageRequest request) {
@@ -52,7 +59,22 @@ public class StorageService {
             request.observations()
         );
 
-        return storageMapper.toResponse(storageRepository.save(storage));
+        StorageEntity savedStorage = storageRepository.save(storage);
+        StorageResponse response = storageMapper.toResponse(savedStorage);
+        
+        UUID actorUserId = extractActorUserId();
+        auditLogService.record(
+            actorUserId,
+            "STORAGE",
+            savedStorage.getId().toString(),
+            AuditAction.CREATE,
+            "Storage " + savedStorage.getStorageCode() + " created.",
+            null,
+            response,
+            null
+        );
+        
+        return response;
     }
 
     @Transactional(readOnly = true)
@@ -76,6 +98,7 @@ public class StorageService {
     public StorageResponse update(UUID id, UpdateStorageRequest request) {
         StorageEntity storage = getStorage(id);
         validateUniqueStorageCode(request.storageCode(), storage.getId());
+        StorageResponse previousState = storageMapper.toResponse(storage);
 
         applyEditableFields(
             storage,
@@ -86,11 +109,27 @@ public class StorageService {
             request.observations()
         );
 
-        return storageMapper.toResponse(storageRepository.save(storage));
+        StorageEntity savedStorage = storageRepository.save(storage);
+        StorageResponse response = storageMapper.toResponse(savedStorage);
+        
+        UUID actorUserId = extractActorUserId();
+        auditLogService.record(
+            actorUserId,
+            "STORAGE",
+            savedStorage.getId().toString(),
+            AuditAction.UPDATE,
+            "Storage " + savedStorage.getStorageCode() + " updated.",
+            previousState,
+            response,
+            null
+        );
+        
+        return response;
     }
 
     public StorageResponse updateStatus(UUID id, UpdateStorageStatusRequest request) {
         StorageEntity storage = getStorage(id);
+        StorageResponse previousState = storageMapper.toResponse(storage);
 
         if (!request.active() && request.occupancyStatus() == StorageOccupancyStatus.OCUPADA) {
             throw new IllegalArgumentException("An inactive storage cannot be marked as occupied.");
@@ -98,7 +137,22 @@ public class StorageService {
 
         storage.setActive(request.active());
         storage.setOccupancyStatus(request.occupancyStatus());
-        return storageMapper.toResponse(storageRepository.save(storage));
+        StorageEntity savedStorage = storageRepository.save(storage);
+        StorageResponse response = storageMapper.toResponse(savedStorage);
+        
+        UUID actorUserId = extractActorUserId();
+        auditLogService.record(
+            actorUserId,
+            "STORAGE",
+            savedStorage.getId().toString(),
+            AuditAction.UPDATE,
+            "Storage " + savedStorage.getStorageCode() + " status changed to " + request.occupancyStatus() + ".",
+            previousState,
+            response,
+            null
+        );
+        
+        return response;
     }
 
     private StorageEntity getStorage(UUID id) {
@@ -148,5 +202,20 @@ public class StorageService {
 
         String trimmed = value.trim();
         return trimmed.isBlank() ? null : trimmed;
+    }
+
+    private UUID extractActorUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.isAuthenticated()) {
+            Object principal = authentication.getPrincipal();
+            if (principal instanceof String) {
+                try {
+                    return UUID.fromString((String) principal);
+                } catch (IllegalArgumentException e) {
+                    return null;
+                }
+            }
+        }
+        return null;
     }
 }
