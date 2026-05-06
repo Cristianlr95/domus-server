@@ -1,6 +1,7 @@
 package com.domus.server.parking.controller;
 
 import com.domus.server.common.api.ApiResponse;
+import com.domus.server.common.security.AuthUser;
 import com.domus.server.parking.dto.request.CreateParkingRequest;
 import com.domus.server.parking.dto.request.UpdateParkingRequest;
 import com.domus.server.parking.dto.request.UpdateParkingStatusRequest;
@@ -13,6 +14,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -36,8 +38,11 @@ public class ParkingController {
     @PostMapping
     @Operation(summary = "Register a new parking spot")
     @PreAuthorize("hasAuthority('parking.manage')")
-    public ApiResponse<ParkingResponse> create(@Valid @RequestBody CreateParkingRequest request) {
-        return ApiResponse.of(parkingService.create(request));
+    public ApiResponse<ParkingResponse> create(
+        @Valid @RequestBody CreateParkingRequest request,
+        @AuthenticationPrincipal AuthUser authUser
+    ) {
+        return ApiResponse.of(parkingService.create(request, authUser.getId()));
     }
 
     @GetMapping
@@ -64,9 +69,10 @@ public class ParkingController {
     @PreAuthorize("hasAuthority('parking.manage')")
     public ApiResponse<ParkingResponse> update(
         @PathVariable UUID id,
-        @Valid @RequestBody UpdateParkingRequest request
+        @Valid @RequestBody UpdateParkingRequest request,
+        @AuthenticationPrincipal AuthUser authUser
     ) {
-        return ApiResponse.of(parkingService.update(id, request));
+        return ApiResponse.of(parkingService.update(id, request, authUser.getId()));
     }
 
     @PatchMapping("/{id}/status")
@@ -74,8 +80,9 @@ public class ParkingController {
     @PreAuthorize("hasAuthority('parking.manage')")
     public ApiResponse<ParkingResponse> updateStatus(
         @PathVariable UUID id,
-        @Valid @RequestBody UpdateParkingStatusRequest request
+        @Valid @RequestBody UpdateParkingStatusRequest request,
+        @AuthenticationPrincipal AuthUser authUser
     ) {
-        return ApiResponse.of(parkingService.updateStatus(id, request));
+        return ApiResponse.of(parkingService.updateStatus(id, request, authUser.getId()));
     }
 }

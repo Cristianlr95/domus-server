@@ -1,6 +1,7 @@
 package com.domus.server.storages.controller;
 
 import com.domus.server.common.api.ApiResponse;
+import com.domus.server.common.security.AuthUser;
 import com.domus.server.storages.dto.request.CreateStorageRequest;
 import com.domus.server.storages.dto.request.UpdateStorageRequest;
 import com.domus.server.storages.dto.request.UpdateStorageStatusRequest;
@@ -12,6 +13,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -35,8 +37,11 @@ public class StorageController {
     @PostMapping
     @Operation(summary = "Register a new storage")
     @PreAuthorize("hasAuthority('storages.manage')")
-    public ApiResponse<StorageResponse> create(@Valid @RequestBody CreateStorageRequest request) {
-        return ApiResponse.of(storageService.create(request));
+    public ApiResponse<StorageResponse> create(
+        @Valid @RequestBody CreateStorageRequest request,
+        @AuthenticationPrincipal AuthUser authUser
+    ) {
+        return ApiResponse.of(storageService.create(request, authUser.getId()));
     }
 
     @GetMapping
@@ -63,9 +68,10 @@ public class StorageController {
     @PreAuthorize("hasAuthority('storages.manage')")
     public ApiResponse<StorageResponse> update(
         @PathVariable UUID id,
-        @Valid @RequestBody UpdateStorageRequest request
+        @Valid @RequestBody UpdateStorageRequest request,
+        @AuthenticationPrincipal AuthUser authUser
     ) {
-        return ApiResponse.of(storageService.update(id, request));
+        return ApiResponse.of(storageService.update(id, request, authUser.getId()));
     }
 
     @PatchMapping("/{id}/status")
@@ -73,8 +79,9 @@ public class StorageController {
     @PreAuthorize("hasAuthority('storages.manage')")
     public ApiResponse<StorageResponse> updateStatus(
         @PathVariable UUID id,
-        @Valid @RequestBody UpdateStorageStatusRequest request
+        @Valid @RequestBody UpdateStorageStatusRequest request,
+        @AuthenticationPrincipal AuthUser authUser
     ) {
-        return ApiResponse.of(storageService.updateStatus(id, request));
+        return ApiResponse.of(storageService.updateStatus(id, request, authUser.getId()));
     }
 }

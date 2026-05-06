@@ -21,8 +21,6 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,7 +48,7 @@ public class ParkingService {
         this.auditLogService = auditLogService;
     }
 
-    public ParkingResponse create(CreateParkingRequest request) {
+    public ParkingResponse create(CreateParkingRequest request, UUID actorUserId) {
         validateUniqueSpotCode(request.spotCode(), null);
 
         ParkingEntity parking = new ParkingEntity();
@@ -70,8 +68,6 @@ public class ParkingService {
 
         ParkingEntity savedParking = parkingRepository.save(parking);
         ParkingResponse response = parkingMapper.toResponse(savedParking);
-        
-        UUID actorUserId = extractActorUserId();
         auditLogService.record(
             actorUserId,
             "PARKING",
@@ -80,9 +76,8 @@ public class ParkingService {
             "Parking spot " + savedParking.getSpotCode() + " created.",
             null,
             response,
-            null
+            java.util.Map.of("parkingType", savedParking.getParkingType())
         );
-        
         return response;
     }
 
@@ -104,7 +99,7 @@ public class ParkingService {
         return parkingMapper.toResponse(getParking(id));
     }
 
-    public ParkingResponse update(UUID id, UpdateParkingRequest request) {
+    public ParkingResponse update(UUID id, UpdateParkingRequest request, UUID actorUserId) {
         ParkingEntity parking = getParking(id);
         validateUniqueSpotCode(request.spotCode(), parking.getId());
         ParkingResponse previousState = parkingMapper.toResponse(parking);
@@ -122,8 +117,6 @@ public class ParkingService {
 
         ParkingEntity savedParking = parkingRepository.save(parking);
         ParkingResponse response = parkingMapper.toResponse(savedParking);
-        
-        UUID actorUserId = extractActorUserId();
         auditLogService.record(
             actorUserId,
             "PARKING",
@@ -134,12 +127,12 @@ public class ParkingService {
             response,
             null
         );
-        
         return response;
     }
 
-    public ParkingResponse updateStatus(UUID id, UpdateParkingStatusRequest request) {
+    public ParkingResponse updateStatus(UUID id, UpdateParkingStatusRequest request, UUID actorUserId) {
         ParkingEntity parking = getParking(id);
+        ParkingOccupancyStatus previousStatus = parking.getOccupancyStatus();
         ParkingResponse previousState = parkingMapper.toResponse(parking);
 
         if (!request.active() && request.occupancyStatus() == ParkingOccupancyStatus.OCUPADO) {
@@ -158,19 +151,16 @@ public class ParkingService {
         parking.setOccupancyStatus(request.occupancyStatus());
         ParkingEntity savedParking = parkingRepository.save(parking);
         ParkingResponse response = parkingMapper.toResponse(savedParking);
-        
-        UUID actorUserId = extractActorUserId();
         auditLogService.record(
             actorUserId,
             "PARKING",
             savedParking.getId().toString(),
-            AuditAction.UPDATE,
-            "Parking spot " + savedParking.getSpotCode() + " status changed to " + request.occupancyStatus() + ".",
+            AuditAction.STATUS_CHANGE,
+            "Parking spot " + savedParking.getSpotCode() + " status changed from " + previousStatus + " to " + request.occupancyStatus() + ".",
             previousState,
             response,
-            null
+            java.util.Map.of("previousStatus", previousStatus, "newStatus", request.occupancyStatus())
         );
-        
         return response;
     }
 
@@ -264,18 +254,4 @@ public class ParkingService {
         return trimmed.isBlank() ? null : trimmed;
     }
 
-    private UUID extractActorUserId() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null && authentication.isAuthenticated()) {
-            Object principal = authentication.getPrincipal();
-            if (principal instanceof String) {
-                try {
-                    return UUID.fromString((String) principal);
-                } catch (IllegalArgumentException e) {
-                    return null;
-                }
-            }
-        }
-        return null;
-    }
 }

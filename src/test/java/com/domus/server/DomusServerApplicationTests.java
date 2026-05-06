@@ -533,6 +533,7 @@ class DomusServerApplicationTests {
     @Test
     void conciergeCanCreateUpdateAndChangeParkingStatus() throws Exception {
         String conciergeToken = loginAndExtractToken("conserjeria@domus.cl", "Domus123!");
+        String adminToken = loginAndExtractToken("admin@domus.cl", "Domus123!");
 
         String unitBody = """
             {
@@ -650,11 +651,23 @@ class DomusServerApplicationTests {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.active").value(false))
             .andExpect(jsonPath("$.data.occupancyStatus").value("DISPONIBLE"));
+
+        mockMvc.perform(get("/api/v1/audit-logs")
+                .header("Authorization", "Bearer " + adminToken)
+                .param("entityType", "PARKING"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[0].entityType").value("PARKING"))
+            .andExpect(jsonPath("$.data[0].entityId").value(parkingId))
+            .andExpect(jsonPath("$.data[0].action").value("STATUS_CHANGE"))
+            .andExpect(jsonPath("$.data[0].actor.email").value("conserjeria@domus.cl"))
+            .andExpect(jsonPath("$.data[1].action").value("UPDATE"))
+            .andExpect(jsonPath("$.data[2].action").value("CREATE"));
     }
 
     @Test
     void conciergeCanCreateUpdateAndChangeStorageStatus() throws Exception {
         String conciergeToken = loginAndExtractToken("conserjeria@domus.cl", "Domus123!");
+        String adminToken = loginAndExtractToken("admin@domus.cl", "Domus123!");
 
         String unitBody = """
             {
@@ -743,6 +756,17 @@ class DomusServerApplicationTests {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.active").value(false))
             .andExpect(jsonPath("$.data.occupancyStatus").value("DISPONIBLE"));
+
+        mockMvc.perform(get("/api/v1/audit-logs")
+                .header("Authorization", "Bearer " + adminToken)
+                .param("entityType", "STORAGE"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[0].entityType").value("STORAGE"))
+            .andExpect(jsonPath("$.data[0].entityId").value(storageId))
+            .andExpect(jsonPath("$.data[0].action").value("STATUS_CHANGE"))
+            .andExpect(jsonPath("$.data[0].actor.email").value("conserjeria@domus.cl"))
+            .andExpect(jsonPath("$.data[1].action").value("UPDATE"))
+            .andExpect(jsonPath("$.data[2].action").value("CREATE"));
     }
 
     @Test

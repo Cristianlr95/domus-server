@@ -18,8 +18,6 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,7 +42,7 @@ public class StorageService {
         this.auditLogService = auditLogService;
     }
 
-    public StorageResponse create(CreateStorageRequest request) {
+    public StorageResponse create(CreateStorageRequest request, UUID actorUserId) {
         validateUniqueStorageCode(request.storageCode(), null);
 
         StorageEntity storage = new StorageEntity();
@@ -61,8 +59,6 @@ public class StorageService {
 
         StorageEntity savedStorage = storageRepository.save(storage);
         StorageResponse response = storageMapper.toResponse(savedStorage);
-        
-        UUID actorUserId = extractActorUserId();
         auditLogService.record(
             actorUserId,
             "STORAGE",
@@ -71,9 +67,8 @@ public class StorageService {
             "Storage " + savedStorage.getStorageCode() + " created.",
             null,
             response,
-            null
+            java.util.Map.of("storageType", savedStorage.getStorageType())
         );
-        
         return response;
     }
 
@@ -95,7 +90,7 @@ public class StorageService {
         return storageMapper.toResponse(getStorage(id));
     }
 
-    public StorageResponse update(UUID id, UpdateStorageRequest request) {
+    public StorageResponse update(UUID id, UpdateStorageRequest request, UUID actorUserId) {
         StorageEntity storage = getStorage(id);
         validateUniqueStorageCode(request.storageCode(), storage.getId());
         StorageResponse previousState = storageMapper.toResponse(storage);
@@ -111,8 +106,6 @@ public class StorageService {
 
         StorageEntity savedStorage = storageRepository.save(storage);
         StorageResponse response = storageMapper.toResponse(savedStorage);
-        
-        UUID actorUserId = extractActorUserId();
         auditLogService.record(
             actorUserId,
             "STORAGE",
@@ -123,12 +116,12 @@ public class StorageService {
             response,
             null
         );
-        
         return response;
     }
 
-    public StorageResponse updateStatus(UUID id, UpdateStorageStatusRequest request) {
+    public StorageResponse updateStatus(UUID id, UpdateStorageStatusRequest request, UUID actorUserId) {
         StorageEntity storage = getStorage(id);
+        StorageOccupancyStatus previousStatus = storage.getOccupancyStatus();
         StorageResponse previousState = storageMapper.toResponse(storage);
 
         if (!request.active() && request.occupancyStatus() == StorageOccupancyStatus.OCUPADA) {
@@ -139,19 +132,16 @@ public class StorageService {
         storage.setOccupancyStatus(request.occupancyStatus());
         StorageEntity savedStorage = storageRepository.save(storage);
         StorageResponse response = storageMapper.toResponse(savedStorage);
-        
-        UUID actorUserId = extractActorUserId();
         auditLogService.record(
             actorUserId,
             "STORAGE",
             savedStorage.getId().toString(),
-            AuditAction.UPDATE,
-            "Storage " + savedStorage.getStorageCode() + " status changed to " + request.occupancyStatus() + ".",
+            AuditAction.STATUS_CHANGE,
+            "Storage " + savedStorage.getStorageCode() + " status changed from " + previousStatus + " to " + request.occupancyStatus() + ".",
             previousState,
             response,
-            null
+            java.util.Map.of("previousStatus", previousStatus, "newStatus", request.occupancyStatus())
         );
-        
         return response;
     }
 
@@ -204,18 +194,4 @@ public class StorageService {
         return trimmed.isBlank() ? null : trimmed;
     }
 
-    private UUID extractActorUserId() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null && authentication.isAuthenticated()) {
-            Object principal = authentication.getPrincipal();
-            if (principal instanceof String) {
-                try {
-                    return UUID.fromString((String) principal);
-                } catch (IllegalArgumentException e) {
-                    return null;
-                }
-            }
-        }
-        return null;
-    }
 }
