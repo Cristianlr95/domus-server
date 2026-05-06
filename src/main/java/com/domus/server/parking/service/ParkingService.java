@@ -1,5 +1,7 @@
 package com.domus.server.parking.service;
 
+import com.domus.server.audit.entity.AuditAction;
+import com.domus.server.audit.service.AuditLogService;
 import com.domus.server.common.exception.ResourceNotFoundException;
 import com.domus.server.parking.dto.request.CreateParkingRequest;
 import com.domus.server.parking.dto.request.UpdateParkingRequest;
@@ -19,6 +21,8 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,17 +34,20 @@ public class ParkingService {
     private final UnitRepository unitRepository;
     private final ResidentRepository residentRepository;
     private final ParkingMapper parkingMapper;
+    private final AuditLogService auditLogService;
 
     public ParkingService(
         ParkingRepository parkingRepository,
         UnitRepository unitRepository,
         ResidentRepository residentRepository,
-        ParkingMapper parkingMapper
+        ParkingMapper parkingMapper,
+        AuditLogService auditLogService
     ) {
         this.parkingRepository = parkingRepository;
         this.unitRepository = unitRepository;
         this.residentRepository = residentRepository;
         this.parkingMapper = parkingMapper;
+        this.auditLogService = auditLogService;
     }
 
     public ParkingResponse create(CreateParkingRequest request) {
@@ -61,7 +68,22 @@ public class ParkingService {
             request.observations()
         );
 
-        return parkingMapper.toResponse(parkingRepository.save(parking));
+        ParkingEntity savedParking = parkingRepository.save(parking);
+        ParkingResponse response = parkingMapper.toResponse(savedParking);
+        
+        UUID actorUserId = extractActorUserId();
+        auditLogService.record(
+            actorUserId,
+            "PARKING",
+            savedParking.getId().toString(),
+            AuditAction.CREATE,
+            "Parking spot " + savedParking.getSpotCode() + " created.",
+            null,
+            response,
+            null
+        );
+        
+        return response;
     }
 
     @Transactional(readOnly = true)
@@ -85,6 +107,7 @@ public class ParkingService {
     public ParkingResponse update(UUID id, UpdateParkingRequest request) {
         ParkingEntity parking = getParking(id);
         validateUniqueSpotCode(request.spotCode(), parking.getId());
+        ParkingResponse previousState = parkingMapper.toResponse(parking);
 
         applyEditableFields(
             parking,
@@ -97,11 +120,27 @@ public class ParkingService {
             request.observations()
         );
 
-        return parkingMapper.toResponse(parkingRepository.save(parking));
+        ParkingEntity savedParking = parkingRepository.save(parking);
+        ParkingResponse response = parkingMapper.toResponse(savedParking);
+        
+        UUID actorUserId = extractActorUserId();
+        auditLogService.record(
+            actorUserId,
+            "PARKING",
+            savedParking.getId().toString(),
+            AuditAction.UPDATE,
+            "Parking spot " + savedParking.getSpotCode() + " updated.",
+            previousState,
+            response,
+            null
+        );
+        
+        return response;
     }
 
     public ParkingResponse updateStatus(UUID id, UpdateParkingStatusRequest request) {
         ParkingEntity parking = getParking(id);
+        ParkingResponse previousState = parkingMapper.toResponse(parking);
 
         if (!request.active() && request.occupancyStatus() == ParkingOccupancyStatus.OCUPADO) {
             throw new IllegalArgumentException("An inactive parking spot cannot be marked as occupied.");
@@ -117,7 +156,22 @@ public class ParkingService {
 
         parking.setActive(request.active());
         parking.setOccupancyStatus(request.occupancyStatus());
-        return parkingMapper.toResponse(parkingRepository.save(parking));
+        ParkingEntity savedParking = parkingRepository.save(parking);
+        ParkingResponse response = parkingMapper.toResponse(savedParking);
+        
+        UUID actorUserId = extractActorUserId();
+        auditLogService.record(
+            actorUserId,
+            "PARKING",
+            savedParking.getId().toString(),
+            AuditAction.UPDATE,
+            "Parking spot " + savedParking.getSpotCode() + " status changed to " + request.occupancyStatus() + ".",
+            previousState,
+            response,
+            null
+        );
+        
+        return response;
     }
 
     private ParkingEntity getParking(UUID id) {
@@ -208,5 +262,20 @@ public class ParkingService {
 
         String trimmed = value.trim();
         return trimmed.isBlank() ? null : trimmed;
+    }
+
+    private UUID extractActorUserId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.isAuthenticated()) {
+            Object principal = authentication.getPrincipal();
+            if (principal instanceof String) {
+                try {
+                    return UUID.fromString((String) principal);
+                } catch (IllegalArgumentException e) {
+                    return null;
+                }
+            }
+        }
+        return null;
     }
 }
