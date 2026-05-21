@@ -12,6 +12,10 @@ public interface UserRepository extends JpaRepository<UserEntity, UUID> {
 
     Optional<UserEntity> findByEmailIgnoreCase(String email);
 
+    boolean existsByEmailIgnoreCase(String email);
+
+    boolean existsByEmailIgnoreCaseAndIdNot(String email, UUID id);
+
     @Query("""
         select u
         from UserEntity u

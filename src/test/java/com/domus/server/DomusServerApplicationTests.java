@@ -72,6 +72,79 @@ class DomusServerApplicationTests {
     }
 
     @Test
+    void adminCanCreateUpdateAndDeactivateUsers() throws Exception {
+        String adminToken = loginAndExtractToken("admin@domus.cl", "Domus123!");
+        String conciergeToken = loginAndExtractToken("conserjeria@domus.cl", "Domus123!");
+
+        String createBody = """
+            {
+              "firstName": "Javier",
+              "lastName": "Administrador",
+              "email": "javier.admin@domus.cl",
+              "password": "Domus123!",
+              "role": "CONSERJERIA"
+            }
+            """;
+
+        String createResponse = mockMvc.perform(post("/api/v1/users")
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createBody))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.email").value("javier.admin@domus.cl"))
+            .andExpect(jsonPath("$.data.roles[0]").value("CONSERJERIA"))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+        String userId = objectMapper.readTree(createResponse).path("data").path("id").asText();
+
+        mockMvc.perform(get("/api/v1/users")
+                .header("Authorization", "Bearer " + adminToken)
+                .param("role", "CONSERJERIA")
+                .param("active", "true")
+                .param("search", "javier"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[0].id").value(userId));
+
+        String updateBody = """
+            {
+              "firstName": "Javiera",
+              "lastName": "Administradora",
+              "role": "RESIDENTE"
+            }
+            """;
+
+        mockMvc.perform(put("/api/v1/users/" + userId)
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(updateBody))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.firstName").value("Javiera"))
+            .andExpect(jsonPath("$.data.roles[0]").value("RESIDENTE"));
+
+        mockMvc.perform(patch("/api/v1/users/" + userId + "/deactivate")
+                .header("Authorization", "Bearer " + adminToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.active").value(false));
+
+        mockMvc.perform(post("/api/v1/users")
+                .header("Authorization", "Bearer " + conciergeToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createBody))
+            .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/v1/audit-logs")
+                .header("Authorization", "Bearer " + adminToken)
+                .param("entityType", "USER"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[0].entityId").value(userId))
+            .andExpect(jsonPath("$.data[0].action").value("STATUS_CHANGE"))
+            .andExpect(jsonPath("$.data[1].action").value("UPDATE"))
+            .andExpect(jsonPath("$.data[2].action").value("CREATE"));
+    }
+
+    @Test
     void adminCanReviewAuditLogsAndResidentCannotAccessThem() throws Exception {
         String conciergeToken = loginAndExtractToken("conserjeria@domus.cl", "Domus123!");
         String adminToken = loginAndExtractToken("admin@domus.cl", "Domus123!");

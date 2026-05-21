@@ -4,6 +4,7 @@ import com.domus.server.common.exception.ResourceNotFoundException;
 import com.domus.server.user.dto.response.PermissionResponse;
 import com.domus.server.user.dto.response.RoleResponse;
 import com.domus.server.user.dto.response.UserResponse;
+import com.domus.server.user.entity.RoleName;
 import com.domus.server.user.mapper.UserMapper;
 import com.domus.server.user.repository.PermissionRepository;
 import com.domus.server.user.repository.RoleRepository;
@@ -32,8 +33,16 @@ public class UserQueryService {
         this.userMapper = userMapper;
     }
 
-    public List<UserResponse> listUsers() {
+    public List<UserResponse> listUsers(Boolean active, RoleName role, String search) {
+        String normalizedSearch = search == null ? null : search.trim().toLowerCase();
+
         return userRepository.findAll().stream()
+            .filter(user -> active == null || user.isActive() == active)
+            .filter(user -> role == null || user.getRoleNames().contains(role))
+            .filter(user -> normalizedSearch == null || normalizedSearch.isBlank()
+                || user.getFirstName().toLowerCase().contains(normalizedSearch)
+                || user.getLastName().toLowerCase().contains(normalizedSearch)
+                || user.getEmail().toLowerCase().contains(normalizedSearch))
             .map(userMapper::toResponse)
             .toList();
     }
