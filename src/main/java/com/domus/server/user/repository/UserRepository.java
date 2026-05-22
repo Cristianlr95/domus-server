@@ -16,6 +16,8 @@ public interface UserRepository extends JpaRepository<UserEntity, UUID> {
 
     boolean existsByEmailIgnoreCaseAndIdNot(String email, UUID id);
 
+    long countByActiveTrue();
+
     @Query("""
         select u
         from UserEntity u

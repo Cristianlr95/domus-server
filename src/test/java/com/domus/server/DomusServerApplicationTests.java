@@ -604,6 +604,32 @@ class DomusServerApplicationTests {
     }
 
     @Test
+    void adminCanViewAdministrativeDashboardAndConciergeCannot() throws Exception {
+        String adminToken = loginAndExtractToken("admin@domus.cl", "Domus123!");
+        String conciergeToken = loginAndExtractToken("conserjeria@domus.cl", "Domus123!");
+
+        mockMvc.perform(get("/api/v1/admin/dashboard")
+                .header("Authorization", "Bearer " + adminToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.metrics.totalUsers").value(greaterThanOrEqualTo(3)))
+            .andExpect(jsonPath("$.data.metrics.activeUsers").value(greaterThanOrEqualTo(3)))
+            .andExpect(jsonPath("$.data.metrics.activeResidents").value(greaterThanOrEqualTo(0)))
+            .andExpect(jsonPath("$.data.metrics.unreadNotifications").value(greaterThanOrEqualTo(0)))
+            .andExpect(jsonPath("$.data.recentActivity[0].action").exists())
+            .andExpect(jsonPath("$.data.generatedAt").isNotEmpty());
+
+        mockMvc.perform(get("/api/v1/admin/recent-activity")
+                .header("Authorization", "Bearer " + adminToken)
+                .param("limit", "3"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[0].summary").isNotEmpty());
+
+        mockMvc.perform(get("/api/v1/admin/dashboard")
+                .header("Authorization", "Bearer " + conciergeToken))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
     void conciergeCanCreateUpdateAndChangeParkingStatus() throws Exception {
         String conciergeToken = loginAndExtractToken("conserjeria@domus.cl", "Domus123!");
         String adminToken = loginAndExtractToken("admin@domus.cl", "Domus123!");

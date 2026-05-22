@@ -10,4 +10,6 @@ public interface StorageRepository extends JpaRepository<StorageEntity, UUID>, J
     boolean existsByStorageCodeIgnoreCase(String storageCode);
 
     boolean existsByStorageCodeIgnoreCaseAndIdNot(String storageCode, UUID id);
+
+    long countByActiveTrue();
 }
