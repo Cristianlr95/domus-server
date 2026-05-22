@@ -9,6 +9,8 @@ public enum PermissionCode {
     PACKAGES_READ("packages.read"),
     PACKAGES_CREATE("packages.create"),
     PACKAGES_UPDATE("packages.update"),
+    PROPERTIES_READ("properties.read"),
+    PROPERTIES_MANAGE("properties.manage"),
     RESIDENTS_READ("residents.read"),
     RESIDENTS_MANAGE("residents.manage"),
     UNITS_READ("units.read"),

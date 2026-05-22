@@ -1,6 +1,7 @@
 package com.domus.server;
 
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -866,6 +867,93 @@ class DomusServerApplicationTests {
             .andExpect(jsonPath("$.data[0].actor.email").value("conserjeria@domus.cl"))
             .andExpect(jsonPath("$.data[1].action").value("UPDATE"))
             .andExpect(jsonPath("$.data[2].action").value("CREATE"));
+    }
+
+    @Test
+    void adminCanManagePropertiesAndResidentCannotAccessThem() throws Exception {
+        String adminToken = loginAndExtractToken("admin@domus.cl", "Domus123!");
+        String residentToken = loginAndExtractToken("residente@domus.cl", "Domus123!");
+
+        String createBody = """
+            {
+              "label": "Casa Norte 12",
+              "blockLabel": "Sector Norte",
+              "type": "CASA",
+              "status": "DISPONIBLE",
+              "bedrooms": 4,
+              "bathrooms": 3,
+              "squareMeters": 126.75,
+              "floor": 1,
+              "ownerName": "Carolina Vera",
+              "ownerEmail": "carolina.vera@domus.cl",
+              "ownerPhone": "+56977778888",
+              "residentsCount": 0,
+              "observations": "Casa disponible para arriendo."
+            }
+            """;
+
+        String createResponse = mockMvc.perform(post("/api/v1/properties")
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createBody))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.label").value("Casa Norte 12"))
+            .andExpect(jsonPath("$.data.type").value("CASA"))
+            .andExpect(jsonPath("$.data.status").value("DISPONIBLE"))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+        String propertyId = objectMapper.readTree(createResponse).path("data").path("id").asText();
+
+        mockMvc.perform(get("/api/v1/properties")
+                .header("Authorization", "Bearer " + adminToken)
+                .param("type", "CASA")
+                .param("status", "DISPONIBLE")
+                .param("block", "Norte")
+                .param("search", "Carolina"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[0].id").value(propertyId));
+
+        mockMvc.perform(get("/api/v1/properties/" + propertyId)
+                .header("Authorization", "Bearer " + adminToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.ownerEmail").value("carolina.vera@domus.cl"));
+
+        String updateBody = """
+            {
+              "status": "ALQUILER",
+              "ownerName": "Carolina Vera",
+              "ownerEmail": "carolina.vera@domus.cl",
+              "ownerPhone": "+56977778888",
+              "residentsCount": 1,
+              "observations": "Casa publicada para arriendo."
+            }
+            """;
+
+        mockMvc.perform(put("/api/v1/properties/" + propertyId)
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(updateBody))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.status").value("ALQUILER"))
+            .andExpect(jsonPath("$.data.residentsCount").value(1));
+
+        mockMvc.perform(get("/api/v1/audit-logs")
+                .header("Authorization", "Bearer " + adminToken)
+                .param("entityType", "PROPERTY"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[0].entityId").value(propertyId))
+            .andExpect(jsonPath("$.data[0].action").value("STATUS_CHANGE"))
+            .andExpect(jsonPath("$.data[1].action").value("CREATE"));
+
+        mockMvc.perform(get("/api/v1/properties")
+                .header("Authorization", "Bearer " + residentToken))
+            .andExpect(status().isForbidden());
+
+        mockMvc.perform(delete("/api/v1/properties/" + propertyId)
+                .header("Authorization", "Bearer " + adminToken))
+            .andExpect(status().isNoContent());
     }
 
     @Test

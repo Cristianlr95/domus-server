@@ -14,6 +14,7 @@ Ejemplos actuales:
 - `V3__create_packages_module.sql`
 - `V10__add_rbac_permissions.sql`
 - `V11__create_audit_logs.sql`
+- `V13__create_properties_module.sql`
 
 ## Reglas de mantenimiento
 - No modificar migraciones ya aplicadas en ambientes compartidos.

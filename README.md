@@ -1,7 +1,7 @@
 # Domus Server
 
 ## Descripcion
-Backend REST para Domus, una plataforma de administracion residencial orientada a condominios y comunidades. Expone servicios para autenticacion, usuarios, unidades, residentes, visitas, encomiendas, estacionamientos, bodegas, mensajeria, notificaciones, auditoria y panel operativo de conserjeria.
+Backend REST para Domus, una plataforma de administracion residencial orientada a condominios y comunidades. Expone servicios para autenticacion, usuarios, propiedades, unidades, residentes, visitas, encomiendas, estacionamientos, bodegas, mensajeria, notificaciones, auditoria y paneles operativos.
 
 ## Repositorios relacionados
 - Frontend cliente: [Cristianlr95/domus-app](https://github.com/Cristianlr95/domus-app)
@@ -12,7 +12,7 @@ La operacion diaria de un edificio o condominio suele quedar repartida entre pla
 ## Funcionalidades principales
 - Login con JWT y restauracion de usuario autenticado.
 - Control de acceso basado en roles y permisos.
-- Gestion de unidades, residentes, visitas, encomiendas, estacionamientos y bodegas.
+- Gestion de propiedades, unidades, residentes, visitas, encomiendas, estacionamientos y bodegas.
 - Panel de conserjeria con metricas y actividad reciente.
 - Mensajeria interna y notificaciones.
 - Registro de auditoria para acciones relevantes.
@@ -114,16 +114,17 @@ En Windows:
 ## Estado del proyecto
 Proyecto en estado funcional. El backend ya contiene los dominios principales de operacion residencial, autenticacion JWT, control de permisos y migraciones versionadas. La evolucion pendiente se concentra en hardening productivo, observabilidad y autorizacion fina.
 
-Avance funcional estimado: `88%`.
+Avance funcional estimado: `90%`.
 
 ## Funcionalidades implementadas
 - Autenticacion JWT.
 - Usuarios, roles, permisos y gestion basica de cuentas.
 - CRUD y cambios de estado para dominios operativos.
+- Inventario de propiedades con filtros, permisos y auditoria.
 - Dashboard de conserjeria.
 - Dashboard administrativo.
 - Mensajeria, notificaciones y auditoria.
-- Auditoria operacional para visitas, encomiendas, residentes, unidades, estacionamientos, bodegas, login y mensajeria.
+- Auditoria operacional para propiedades, visitas, encomiendas, residentes, unidades, estacionamientos, bodegas, login y mensajeria.
 - Validacion de esquema con Flyway.
 
 ## Funcionalidades en desarrollo o parciales
