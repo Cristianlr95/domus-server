@@ -16,6 +16,7 @@ Ejemplos actuales:
 - `V11__create_audit_logs.sql`
 - `V13__create_properties_module.sql`
 - `V14__create_bookings_module.sql`
+- `V15__create_refresh_tokens.sql`
 
 ## Reglas de mantenimiento
 - No modificar migraciones ya aplicadas en ambientes compartidos.

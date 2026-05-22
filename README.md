@@ -114,10 +114,10 @@ En Windows:
 ## Estado del proyecto
 Proyecto en estado funcional. El backend ya contiene los dominios principales de operacion residencial, autenticacion JWT, control de permisos y migraciones versionadas. La evolucion pendiente se concentra en hardening productivo, observabilidad y autorizacion fina.
 
-Avance funcional estimado: `92%`.
+Avance funcional estimado: `94%`.
 
 ## Funcionalidades implementadas
-- Autenticacion JWT.
+- Autenticacion JWT con refresh tokens revocables.
 - Usuarios, roles, permisos y gestion basica de cuentas.
 - CRUD y cambios de estado para dominios operativos.
 - Inventario de propiedades con filtros, permisos y auditoria.
@@ -135,7 +135,7 @@ Avance funcional estimado: `92%`.
 - Hardening productivo de seguridad, observabilidad y despliegue.
 
 ## Proximas mejoras
-- Incorporar refresh tokens o estrategia de sesion mas robusta.
+- Endurecer rotacion y limpieza programada de sesiones.
 - Mejorar politicas de permisos por accion y propietario del recurso.
 - Agregar pruebas de integracion por modulo critico.
 - Formalizar ambientes `staging` y `production`.

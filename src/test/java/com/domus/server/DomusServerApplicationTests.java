@@ -42,12 +42,15 @@ class DomusServerApplicationTests {
                 .content(loginBody))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
+            .andExpect(jsonPath("$.data.refreshToken").isNotEmpty())
             .andExpect(jsonPath("$.data.user.email").value("admin@domus.cl"))
             .andReturn()
             .getResponse()
             .getContentAsString();
 
-        String token = responseBody.replaceAll(".*\\\"accessToken\\\":\\\"([^\\\"]+)\\\".*", "$1");
+        JsonNode loginData = objectMapper.readTree(responseBody).path("data");
+        String token = loginData.path("accessToken").asText();
+        String refreshToken = loginData.path("refreshToken").asText();
 
         mockMvc.perform(get("/api/v1/users/me")
                 .header("Authorization", "Bearer " + token))
@@ -55,6 +58,46 @@ class DomusServerApplicationTests {
             .andExpect(jsonPath("$.data.email").value("admin@domus.cl"))
             .andExpect(jsonPath("$.data.roles[0]").exists())
             .andExpect(jsonPath("$.data.permissions[0]").exists());
+
+        String refreshBody = """
+            {
+              "refreshToken": "%s"
+            }
+            """.formatted(refreshToken);
+
+        String refreshResponse = mockMvc.perform(post("/api/v1/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(refreshBody))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.accessToken").isNotEmpty())
+            .andExpect(jsonPath("$.data.refreshToken").isNotEmpty())
+            .andExpect(jsonPath("$.data.user.email").value("admin@domus.cl"))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+        String rotatedRefreshToken = objectMapper.readTree(refreshResponse).path("data").path("refreshToken").asText();
+
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(refreshBody))
+            .andExpect(status().isUnauthorized());
+
+        String logoutBody = """
+            {
+              "refreshToken": "%s"
+            }
+            """.formatted(rotatedRefreshToken);
+
+        mockMvc.perform(post("/api/v1/auth/logout")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(logoutBody))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/v1/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(logoutBody))
+            .andExpect(status().isUnauthorized());
     }
 
     @Test
