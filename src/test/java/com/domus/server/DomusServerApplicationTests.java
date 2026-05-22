@@ -957,6 +957,91 @@ class DomusServerApplicationTests {
     }
 
     @Test
+    void residentCanCreateBookingAndConciergeCanConfirmIt() throws Exception {
+        String residentToken = loginAndExtractToken("residente@domus.cl", "Domus123!");
+        String conciergeToken = loginAndExtractToken("conserjeria@domus.cl", "Domus123!");
+        String adminToken = loginAndExtractToken("admin@domus.cl", "Domus123!");
+
+        String spacesResponse = mockMvc.perform(get("/api/v1/bookings/spaces")
+                .header("Authorization", "Bearer " + residentToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[0].id").exists())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+        String spaceId = objectMapper.readTree(spacesResponse).path("data").get(0).path("id").asText();
+
+        String createBody = """
+            {
+              "commonSpaceId": "%s",
+              "bookingDate": "2030-01-10",
+              "startTime": "10:00",
+              "endTime": "12:00",
+              "guestCount": 8,
+              "observations": "Reserva familiar de prueba."
+            }
+            """.formatted(spaceId);
+
+        String createResponse = mockMvc.perform(post("/api/v1/bookings")
+                .header("Authorization", "Bearer " + residentToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createBody))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.status").value("RESERVADA"))
+            .andExpect(jsonPath("$.data.commonSpaceId").value(spaceId))
+            .andExpect(jsonPath("$.data.residentUser.email").value("residente@domus.cl"))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+        String bookingId = objectMapper.readTree(createResponse).path("data").path("id").asText();
+
+        mockMvc.perform(get("/api/v1/bookings")
+                .header("Authorization", "Bearer " + conciergeToken)
+                .param("status", "RESERVADA")
+                .param("startDate", "2030-01-01")
+                .param("endDate", "2030-01-31")
+                .param("search", "Rocio"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[0].id").value(bookingId));
+
+        mockMvc.perform(get("/api/v1/bookings/" + bookingId)
+                .header("Authorization", "Bearer " + conciergeToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.bookingDate").value("2030-01-10"));
+
+        String confirmBody = """
+            {
+              "status": "CONFIRMADA",
+              "observations": "Confirmada por conserjeria."
+            }
+            """;
+
+        mockMvc.perform(patch("/api/v1/bookings/" + bookingId + "/status")
+                .header("Authorization", "Bearer " + conciergeToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(confirmBody))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.status").value("CONFIRMADA"))
+            .andExpect(jsonPath("$.data.approvedByUser.email").value("conserjeria@domus.cl"));
+
+        mockMvc.perform(post("/api/v1/bookings")
+                .header("Authorization", "Bearer " + residentToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createBody))
+            .andExpect(status().isBadRequest());
+
+        mockMvc.perform(get("/api/v1/audit-logs")
+                .header("Authorization", "Bearer " + adminToken)
+                .param("entityType", "BOOKING"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[0].entityId").value(bookingId))
+            .andExpect(jsonPath("$.data[0].action").value("STATUS_CHANGE"))
+            .andExpect(jsonPath("$.data[1].action").value("CREATE"));
+    }
+
+    @Test
     void usersCanExchangeMessagesAndMarkThemAsRead() throws Exception {
         String conciergeToken = loginAndExtractToken("conserjeria@domus.cl", "Domus123!");
         String residentToken = loginAndExtractToken("residente@domus.cl", "Domus123!");
